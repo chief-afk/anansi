@@ -1,6 +1,7 @@
 package com.chief.anansi
 
 import android.app.Application
+import coil3.SingletonImageLoader
 import com.chief.anansi.di.AppContainer
 
 class AnansiApplication : Application() {
@@ -11,5 +12,6 @@ class AnansiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        SingletonImageLoader.setSafe { container.imageLoader }
     }
 }

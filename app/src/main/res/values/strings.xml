@@ -43,6 +43,24 @@
     <string name="backlog_statistics_title">Statistics</string>
     <string name="backlog_statistics_body">Reading time and pace</string>
 
+    <!-- Library grid -->
+    <string name="library_continue_chapter">Ch. %1$d</string>
+    <string name="library_all_read">All read</string>
+    <string name="cd_library_unread_badge">%1$d unread chapters</string>
+
+    <!-- History -->
+    <string name="history_today">Today</string>
+    <string name="history_yesterday">Yesterday</string>
+    <string name="history_row_meta">%1$s · %2$s</string>
+    <string name="history_percent">%1$d%%</string>
+    <string name="history_finished">Finished</string>
+    <string name="history_remove">Remove from history</string>
+    <string name="history_clear">Clear history</string>
+    <string name="history_clear_confirm_title">Clear history?</string>
+    <string name="history_clear_confirm_body">Every history entry will be removed.</string>
+    <string name="history_clear_confirm_action">Clear</string>
+    <string name="dialog_cancel">Cancel</string>
+
     <!-- Appearance -->
     <string name="appearance_theme_mode_label">THEME MODE</string>
     <string name="theme_mode_system">System</string>
