@@ -4,3 +4,17 @@ _docs/
 # OS junk
 Thumbs.db
 .DS_Store
+
+# Gradle
+.gradle/
+build/
+
+# Android Studio
+local.properties
+
+# Kotlin
+.kotlin/
+
+# Signing material
+*.jks
+*.keystore
