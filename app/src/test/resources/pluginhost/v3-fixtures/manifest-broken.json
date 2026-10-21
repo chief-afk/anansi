@@ -1,0 +1,29 @@
+[
+  {
+    "id": "broken-missing-site",
+    "name": "Broken One",
+    "lang": "en",
+    "version": "1.0.0",
+    "url": "broken-one.js",
+    "iconUrl": "https://fixture.invalid/icon.png"
+  },
+  {
+    "id": "broken-nonstring-version",
+    "name": "Broken Two",
+    "site": "https://fixture.invalid/",
+    "lang": "en",
+    "version": 3,
+    "url": "broken-two.js",
+    "iconUrl": "https://fixture.invalid/icon.png"
+  },
+  "not-an-object",
+  {
+    "id": "fixture-v3",
+    "name": "Fixture V3",
+    "site": "https://novelfull.com/",
+    "lang": "en",
+    "version": "1.0.0",
+    "url": "good-dist.js",
+    "iconUrl": "https://novelfull.com/icon.png"
+  }
+]

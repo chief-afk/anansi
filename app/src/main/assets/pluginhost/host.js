@@ -750,6 +750,7 @@
       hasPluginSettings: plugin.pluginSettings != null,
       filters: plugin.filters == null ? null : plugin.filters,
       pluginSettings: plugin.pluginSettings == null ? null : plugin.pluginSettings,
+      imageRequestInit: plugin.imageRequestInit == null ? null : plugin.imageRequestInit,
     });
   };
 

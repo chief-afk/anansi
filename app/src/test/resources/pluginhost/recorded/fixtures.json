@@ -4,6 +4,16 @@
     "statusText": "OK",
     "file": "most-popular-page-1.html"
   },
+  "https://novelfull.com/reincarnation-of-the-strongest-sword-god.html": {
+    "status": 200,
+    "statusText": "OK",
+    "file": "novel-page-reincarnation.html"
+  },
+  "https://novelfull.com/search?keyword=sword&page=1": {
+    "status": 200,
+    "statusText": "OK",
+    "file": "search-sword-page-1.html"
+  },
   "https://novelfull.com/reincarnation-of-the-strongest-sword-god/chapter-1-starting-over.html": {
     "status": 200,
     "statusText": "OK",
