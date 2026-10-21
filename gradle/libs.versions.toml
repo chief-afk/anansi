@@ -10,6 +10,7 @@ navigationCompose = "2.10.2"
 datastorePreferences = "1.2.1"
 room = "2.8.5"
 coil = "3.6.3"
+media3 = "1.11.1"
 kotlinxSerialization = "1.12.0"
 okhttp = "5.5.0"
 quickjsKt = "1.0.15"
@@ -34,6 +35,7 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 coil = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 quickjs-kt = { group = "io.github.dokar3", name = "quickjs-kt", version.ref = "quickjsKt" }

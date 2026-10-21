@@ -46,8 +46,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chief.anansi.R
+import com.chief.anansi.ui.LocalTtsController
 import com.chief.anansi.ui.components.EmptyState
 import com.chief.anansi.ui.components.NovelCover
+import com.chief.anansi.ui.reader.TtsDrawer
+import com.chief.anansi.ui.reader.rememberTtsStart
 
 /**
  * Novel details: metadata, source line naming the ecosystem
@@ -72,6 +75,14 @@ fun NovelDetailsScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showSheet by remember { mutableStateOf(false) }
+    // Listen starts the queue at the progress record's chapter,
+    // else the first chapter, and opens the audio sheet.
+    val ttsController = LocalTtsController.current
+    var showTtsDrawer by remember { mutableStateOf(false) }
+    val startListen = rememberTtsStart {
+        ttsController.start(identity, novelPath, null)
+        showTtsDrawer = true
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         DetailsHeader(title = state.novel?.title.orEmpty(), onBack = onBack)
@@ -101,8 +112,13 @@ fun NovelDetailsScreen(
                 onMarkRead = viewModel::setChapterRead,
                 onOpenSheet = { showSheet = true },
                 onOpenChapter = onOpenChapter,
+                onListen = startListen,
             )
         }
+    }
+
+    if (showTtsDrawer) {
+        TtsDrawer(onDismiss = { showTtsDrawer = false })
     }
 
     if (showSheet) {
@@ -154,6 +170,7 @@ private fun NovelDetailsContent(
     onMarkRead: (ChapterRow, Boolean) -> Unit,
     onOpenSheet: () -> Unit,
     onOpenChapter: (ChapterRow) -> Unit,
+    onListen: () -> Unit,
 ) {
     val novel = state.novel ?: return
     LazyColumn(
@@ -161,7 +178,12 @@ private fun NovelDetailsContent(
         contentPadding = PaddingValues(bottom = 16.dp),
     ) {
         item(key = "meta") {
-            MetaHeader(state = state, novel = novel, onToggleLibrary = onToggleLibrary)
+            MetaHeader(
+                state = state,
+                novel = novel,
+                onToggleLibrary = onToggleLibrary,
+                onListen = onListen,
+            )
         }
         item(key = "summary") {
             if (!novel.summary.isNullOrBlank()) {
@@ -193,6 +215,7 @@ private fun MetaHeader(
     state: NovelDetailsUiState,
     novel: NovelDisplay,
     onToggleLibrary: () -> Unit,
+    onListen: () -> Unit,
 ) {
     Column {
         Row(
@@ -252,19 +275,40 @@ private fun MetaHeader(
             }
         }
         if (state.inLibrary) {
-            FilledTonalButton(
-                onClick = onToggleLibrary,
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_check),
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.details_in_library))
+                FilledTonalButton(
+                    onClick = onToggleLibrary,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_check),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.details_in_library))
+                }
+                // The Listen entry: shelved novels only, the
+                // same condition as the reader's chapter tap, so the control
+                // never appears as a dead button.
+                FilledTonalButton(
+                    onClick = onListen,
+                    enabled = state.chapters.isNotEmpty(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_headphones),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.details_listen))
+                }
             }
         } else {
             Button(

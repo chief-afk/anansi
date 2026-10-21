@@ -35,6 +35,11 @@ data class ReaderUiState(
     val unavailable: Boolean = false,
     val failure: ReaderFailure? = null,
     val paragraphs: List<String> = emptyList(),
+    /**
+     * The unsplit chapter text: the sentence layer runs over it so
+     * highlight offsets land exactly where the paragraphs render.
+     */
+    val chapterText: String = "",
     val novelTitle: String = "",
     val chapterTitle: String = "",
     val percent: Int = 0,
@@ -195,6 +200,7 @@ class ReaderViewModel(
                 unavailable = false,
                 failure = null,
                 paragraphs = splitParagraphs(text),
+                chapterText = text,
                 novelTitle = novel.title,
                 chapterTitle = current.title,
                 percent = restoredPercent,

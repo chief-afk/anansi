@@ -8,6 +8,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -31,11 +32,13 @@ import com.chief.anansi.ui.browse.SourceManageScreen
 import com.chief.anansi.ui.history.HistoryScreen
 import com.chief.anansi.ui.library.LibraryScreen
 import com.chief.anansi.ui.more.AppearanceScreen
+import com.chief.anansi.ui.more.AudioSettingsScreen
 import com.chief.anansi.ui.more.MoreScreen
 import com.chief.anansi.ui.reader.ReaderScreen
 import com.chief.anansi.ui.updates.UpdatesScreen
 
 private const val APPEARANCE_ROUTE = "appearance"
+private const val AUDIO_ROUTE = "audio"
 private const val REPOSITORIES_ROUTE = "browse/repositories"
 private const val SOURCE_MANAGE_ROUTE = "browse/source/{identity}"
 private const val CATALOG_ROUTE = "browse/source/{identity}/catalog"
@@ -49,6 +52,9 @@ fun AnansiApp(
     onSetThemeMode: (ThemeMode) -> Unit,
     onSetSeedTheme: (SeedTheme) -> Unit,
     onSetPinnedTabsOnly: (Boolean) -> Unit,
+    /** A pending reader deep link from the TTS notification tap. */
+    pendingReaderRoute: String? = null,
+    onReaderRouteConsumed: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
@@ -209,7 +215,10 @@ fun AnansiApp(
                 )
             }
             composable(AnansiTab.MORE.route) {
-                MoreScreen(onOpenAppearance = { navController.navigate(APPEARANCE_ROUTE) })
+                MoreScreen(
+                    onOpenAppearance = { navController.navigate(APPEARANCE_ROUTE) },
+                    onOpenAudio = { navController.navigate(AUDIO_ROUTE) },
+                )
             }
             composable(APPEARANCE_ROUTE) {
                 AppearanceScreen(
@@ -220,7 +229,19 @@ fun AnansiApp(
                     onSetPinnedTabsOnly = onSetPinnedTabsOnly,
                 )
             }
+            composable(AUDIO_ROUTE) {
+                AudioSettingsScreen(onBack = { navController.popBackStack() })
+            }
         }
+    }
+
+    // Tapping the media notification returns to the reader at the
+    // spoken sentence. A reader-route tap replaces the open chapter entry
+    // (single top), mirroring the reader's own chapter switching.
+    LaunchedEffect(pendingReaderRoute) {
+        val route = pendingReaderRoute ?: return@LaunchedEffect
+        navController.navigate(route) { launchSingleTop = true }
+        onReaderRouteConsumed()
     }
 }
 

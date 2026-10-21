@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import coil3.ImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import com.chief.anansi.audio.TtsController
+import com.chief.anansi.audio.TtsSettingsStore
 import com.chief.anansi.data.AnansiDatabase
 import com.chief.anansi.data.repo.HistoryRepository
 import com.chief.anansi.data.repo.LibraryRepository
@@ -34,6 +36,12 @@ class AppContainer(context: Context) {
 
     val settingsStore: SettingsStore = SettingsStore(context)
     val readerSettingsStore: ReaderSettingsStore = ReaderSettingsStore(appContext)
+    val ttsSettingsStore: TtsSettingsStore = TtsSettingsStore(appContext)
+
+    // The audio reader's single controller: the reader and details UIs
+    // observe its state and send commands; the service attaches itself as
+    // the live handle on create.
+    val ttsController = TtsController(appContext, ttsSettingsStore)
 
     // Fetched chapter text held in memory for the session; the reader's
     // failed-retry and reopen paths read from it (no database text cache).

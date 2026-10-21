@@ -183,6 +183,48 @@
     <string name="reader_volume_keys_scroll">Volume keys scroll</string>
     <string name="reader_backlog_note">Paginated page mode, per-novel overrides, and OLED black arrive in a future release.</string>
 
+    <!-- Audio reader  -->
+    <string name="screen_audio_reader">Audio reader</string>
+    <string name="cd_reader_play">Listen to this chapter</string>
+    <string name="cd_reader_pause_playback">Pause playback</string>
+    <string name="cd_tts_previous_sentence">Previous sentence</string>
+    <string name="cd_tts_next_sentence">Next sentence</string>
+    <string name="cd_tts_play">Play</string>
+    <string name="cd_tts_pause">Pause</string>
+    <string name="cd_tts_next_chapter">Next chapter</string>
+    <string name="cd_tts_previous_chapter">Previous chapter</string>
+    <string name="cd_tts_stop">Stop playback</string>
+    <string name="cd_tts_expand">Open audio reader controls</string>
+    <string name="tts_drawer_title">Listening</string>
+    <string name="tts_sentence_position">Sentence %1$d of %2$d</string>
+    <string name="tts_transport_hint">Taps skip one sentence; long-press skips paragraph</string>
+    <string name="tts_speed_label">SPEED</string>
+    <string name="tts_speed_075">0.75x</string>
+    <string name="tts_speed_1">1x</string>
+    <string name="tts_speed_125">1.25x</string>
+    <string name="tts_speed_15">1.5x</string>
+    <string name="tts_speed_2">2x</string>
+    <string name="tts_auto_play_next">Auto-play next chapter</string>
+    <string name="tts_auto_play_next_caption">Fetches the next chapter when one finishes</string>
+    <string name="tts_pause_on_disconnect">Pause when headphones disconnect</string>
+    <string name="tts_system_voice">System voice</string>
+    <string name="tts_voice_caption">%1$s · change in More, Audio reader</string>
+    <string name="tts_fetching_next">Fetching next chapter…</string>
+    <string name="tts_fetch_failed_title">Could not fetch the next chapter</string>
+    <string name="tts_notification_channel">Audio reader</string>
+    <string name="tts_notification_starting">Preparing to read aloud…</string>
+    <string name="tts_no_engine_toast">No text-to-speech engine installed</string>
+    <string name="tts_engine_error_toast">Speech engine failed; playback paused</string>
+    <string name="tts_engine_label">SPEECH ENGINE</string>
+    <string name="tts_engine_row_caption">System default · tap to pick another engine</string>
+    <string name="tts_default_speed_label">DEFAULT SPEED</string>
+    <string name="tts_pitch_label">PITCH</string>
+    <string name="tts_pitch_value">%1$.2f</string>
+    <string name="tts_announce_chapter_start">Announce chapter start</string>
+    <string name="tts_announce_caption">Speak the chapter title before the text</string>
+    <string name="tts_posture_note">Anansi uses whatever text-to-speech engines your device has installed. No voices or audio are bundled, and nothing is uploaded.</string>
+    <string name="details_listen">Listen</string>
+
     <!-- History -->
     <string name="history_today">Today</string>
     <string name="history_yesterday">Yesterday</string>

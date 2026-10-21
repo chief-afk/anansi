@@ -36,7 +36,11 @@ import com.chief.anansi.R
 import com.chief.anansi.ui.components.ScreenTitle
 
 @Composable
-fun MoreScreen(onOpenAppearance: () -> Unit, modifier: Modifier = Modifier) {
+fun MoreScreen(
+    onOpenAppearance: () -> Unit,
+    onOpenAudio: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -82,6 +86,11 @@ fun MoreScreen(onOpenAppearance: () -> Unit, modifier: Modifier = Modifier) {
             iconRes = R.drawable.ic_sun,
             title = stringResource(R.string.screen_appearance),
             onClick = onOpenAppearance,
+        )
+        SettingsRow(
+            iconRes = R.drawable.ic_headphones,
+            title = stringResource(R.string.screen_audio_reader),
+            onClick = onOpenAudio,
         )
         SectionLabel(stringResource(R.string.more_section_backlog))
         BacklogRow(
