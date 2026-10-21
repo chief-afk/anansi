@@ -28,6 +28,67 @@
     <string name="browse_empty_title">No sources installed</string>
     <string name="browse_empty_body">Add a repository to see the sources it serves. The LNReader repository is the usual first stop.</string>
 
+    <!-- Browse sources tab -->
+    <string name="browse_chip_sources">Sources</string>
+    <string name="browse_chip_repositories">Repositories</string>
+    <string name="browse_section_pinned">PINNED</string>
+    <string name="browse_section_all">ALL SOURCES · %1$d</string>
+    <string name="browse_add_repository">Add repository</string>
+    <string name="browse_row_meta_pinned">%1$s · pinned</string>
+    <string name="browse_row_error_line">%1$s: %2$s</string>
+    <string name="browse_row_menu_manage">Manage</string>
+    <string name="browse_row_menu_pin">Pin</string>
+    <string name="browse_row_menu_unpin">Unpin</string>
+    <string name="browse_row_menu_enable">Enable</string>
+    <string name="browse_row_menu_disable">Disable</string>
+    <string name="browse_footer_summary">%1$s · %2$d sources</string>
+    <string name="browse_footer_one_repository">1 repository</string>
+    <string name="browse_footer_repositories">%1$d repositories</string>
+
+    <!-- Repository manager and add flow -->
+    <string name="screen_repositories">Repositories</string>
+    <string name="repo_url_label">REPOSITORY URL</string>
+    <string name="repo_url_hint">https://example.com/plugins.min.json</string>
+    <string name="repo_add_action">Add repository</string>
+    <string name="repo_add_working">Fetching manifest and probing sources…</string>
+    <string name="repo_add_failed">Could not add repository</string>
+    <string name="repo_none">No repositories added yet.</string>
+    <string name="repo_verified_title">Verified manifest</string>
+    <string name="repo_line_api">plugin API %1$s</string>
+    <string name="repo_line_plugins">%1$d plugins</string>
+    <string name="repo_line_added">%1$d added</string>
+    <string name="repo_line_updated">%1$d updated</string>
+    <string name="repo_line_removed">%1$d removed</string>
+    <string name="repo_result_failures_title">FAILED ENTRIES · %1$d</string>
+    <string name="repo_result_failure_line">%1$s: %2$s</string>
+    <string name="repo_result_failures_more">…and %1$d more</string>
+    <string name="repo_result_dismiss">Dismiss</string>
+    <string name="repo_meta_sources">%1$d sources</string>
+    <string name="repo_meta_generation">%1$s: %2$d</string>
+    <string name="repo_remove">Remove repository</string>
+    <string name="repo_remove_confirm_title">Remove repository?</string>
+    <string name="repo_remove_confirm_body">All %1$d sources from this repository will be removed from Browse.</string>
+    <string name="repo_neutrality">Repositories are third-party. Anansi does not host, curate, or endorse any of them. Install a repository only if you trust its maintainer; sources run sandboxed and request only the capabilities they need.</string>
+
+    <!-- Per-source management -->
+    <string name="manage_enabled_label">Enabled</string>
+    <string name="manage_enabled_caption">Disabled sources are excluded from Browse and search.</string>
+    <string name="manage_pinned_label">Pinned</string>
+    <string name="manage_pinned_caption">Show at the top of the Browse list.</string>
+    <string name="manage_permissions_label">PERMISSIONS</string>
+    <string name="manage_permission_network_name">Network</string>
+    <string name="manage_permission_network_body">Fetches web content through the app\'s browser-equivalent network bridge.</string>
+    <string name="manage_permission_storage_name">Storage</string>
+    <string name="manage_permission_storage_body">Reads and writes files on this device.</string>
+    <string name="manage_permission_webview_name">WebView</string>
+    <string name="manage_permission_webview_body">Runs web pages in an embedded browser.</string>
+    <string name="manage_permission_note">Capabilities are declared by the source type and engine, never silently granted.</string>
+    <string name="manage_error_label">LAST ERROR</string>
+    <string name="manage_error_posture">Sources rot; it is not your fault. Plugin fixes arrive through repository updates, not app updates.</string>
+    <string name="manage_remove">Remove source</string>
+    <string name="manage_remove_confirm_title">Remove source?</string>
+    <string name="manage_remove_confirm_body">%1$s will be removed from Browse.</string>
+
     <!-- More hub -->
     <string name="more_header_title">Anansi</string>
     <string name="more_header_subtitle">%1$s · chief-afk</string>
