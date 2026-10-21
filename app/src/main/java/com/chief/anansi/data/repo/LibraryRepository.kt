@@ -3,9 +3,11 @@ package com.chief.anansi.data.repo
 import androidx.room.withTransaction
 import com.chief.anansi.data.AnansiDatabase
 import com.chief.anansi.data.dao.LibraryNovel
+import com.chief.anansi.data.dao.NovelWithProgress
 import com.chief.anansi.data.entity.ChapterEntity
 import com.chief.anansi.data.entity.NovelEntity
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 /**
  * Library reads and writes over novels, chapters, and read marks. Reads are
@@ -44,6 +46,14 @@ class LibraryRepository(
     /** The library row for a novel discovered on a source, when it is shelved. */
     fun observeBySourceNovel(sourceId: Long, sourceNovelId: String): Flow<NovelEntity?> =
         novelDao.observeBySourceNovel(sourceId, sourceNovelId)
+
+    /** One-shot [observeBySourceNovel] for screens that load once. */
+    suspend fun novelBySourceNovel(sourceId: Long, sourceNovelId: String): NovelEntity? =
+        novelDao.observeBySourceNovel(sourceId, sourceNovelId).first()
+
+    /** A shelved novel with its chapters and, when present, its progress row. */
+    suspend fun novelWithProgress(novelId: Long): NovelWithProgress? =
+        chapterDao.findNovelWithProgress(novelId)
 
     /** A shelved novel's chapter rows, in source order. */
     fun observeChapters(novelId: Long): Flow<List<ChapterEntity>> =

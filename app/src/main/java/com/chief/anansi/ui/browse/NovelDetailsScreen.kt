@@ -52,9 +52,10 @@ import com.chief.anansi.ui.components.NovelCover
 /**
  * Novel details: metadata, source line naming the ecosystem
  * origin, the Coil cover, the In library toggle, and the chapter list with
- * read-mark dimming. The sort/filter sheet ships here; the only
- * actions are In library and the per-chapter read marks. The reader and
- * Listen arrive with later phases and appear nowhere as dead buttons.
+ * read-mark dimming. The sort/filter sheet ships here; the
+ * actions are In library, the per-chapter read marks, and the chapter tap
+ * that opens the reader (the reader's entry point). The Listen control arrives
+ * with the audio reader and appears nowhere as a dead button.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +63,7 @@ fun NovelDetailsScreen(
     identity: String,
     novelPath: String,
     onBack: () -> Unit,
+    onOpenChapter: (ChapterRow) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: NovelDetailsViewModel = viewModel(
         key = "$identity::$novelPath",
@@ -98,6 +100,7 @@ fun NovelDetailsScreen(
                 onToggleLibrary = viewModel::toggleLibrary,
                 onMarkRead = viewModel::setChapterRead,
                 onOpenSheet = { showSheet = true },
+                onOpenChapter = onOpenChapter,
             )
         }
     }
@@ -150,6 +153,7 @@ private fun NovelDetailsContent(
     onToggleLibrary: () -> Unit,
     onMarkRead: (ChapterRow, Boolean) -> Unit,
     onOpenSheet: () -> Unit,
+    onOpenChapter: (ChapterRow) -> Unit,
 ) {
     val novel = state.novel ?: return
     LazyColumn(
@@ -178,6 +182,7 @@ private fun NovelDetailsContent(
             ChapterItem(
                 chapter = chapter,
                 onToggleRead = { read -> onMarkRead(chapter, read) },
+                onOpen = { onOpenChapter(chapter) },
             )
         }
     }
@@ -301,11 +306,15 @@ private fun ChaptersHeader(chapterCount: Int, onOpenSheet: () -> Unit) {
 private fun ChapterItem(
     chapter: ChapterRow,
     onToggleRead: (Boolean) -> Unit,
+    onOpen: () -> Unit,
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // The reader opens shelved chapters only: progress and read marks
+            // key on the library rows, which source-only chapters lack.
+            .clickable(enabled = chapter.id != null, onClick = onOpen)
             .padding(start = 18.dp, end = 4.dp),
     ) {
         Column(

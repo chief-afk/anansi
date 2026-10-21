@@ -32,6 +32,7 @@ import com.chief.anansi.ui.history.HistoryScreen
 import com.chief.anansi.ui.library.LibraryScreen
 import com.chief.anansi.ui.more.AppearanceScreen
 import com.chief.anansi.ui.more.MoreScreen
+import com.chief.anansi.ui.reader.ReaderScreen
 import com.chief.anansi.ui.updates.UpdatesScreen
 
 private const val APPEARANCE_ROUTE = "appearance"
@@ -40,6 +41,7 @@ private const val SOURCE_MANAGE_ROUTE = "browse/source/{identity}"
 private const val CATALOG_ROUTE = "browse/source/{identity}/catalog"
 private const val SEARCH_ROUTE = "browse/search?identity={identity}"
 private const val NOVEL_ROUTE = "browse/source/{identity}/novel/{path}"
+private const val READER_ROUTE = "reader/{identity}/{novelPath}/{chapterPath}"
 
 @Composable
 fun AnansiApp(
@@ -168,6 +170,42 @@ fun AnansiApp(
                     identity = identity,
                     novelPath = novelPath,
                     onBack = { navController.popBackStack() },
+                    onOpenChapter = { chapter ->
+                        navController.navigate(
+                            "reader/$identity/${Uri.encode(novelPath)}/${Uri.encode(chapter.path)}",
+                        )
+                    },
+                )
+            }
+            composable(
+                route = READER_ROUTE,
+                arguments = listOf(
+                    navArgument("identity") { type = NavType.StringType },
+                    navArgument("novelPath") { type = NavType.StringType },
+                    navArgument("chapterPath") { type = NavType.StringType },
+                ),
+            ) { entry ->
+                val identity = entry.arguments?.getString("identity").orEmpty()
+                val novelPath = entry.arguments?.getString("novelPath").orEmpty()
+                val chapterPath = entry.arguments?.getString("chapterPath").orEmpty()
+                ReaderScreen(
+                    identity = identity,
+                    novelPath = novelPath,
+                    chapterPath = chapterPath,
+                    onBack = { navController.popBackStack() },
+                    // Footer navigation replaces the current chapter entry so
+                    // system back from any chapter returns to the details
+                    // screen.
+                    onSwitchChapter = { nextChapterPath ->
+                        val current = navController.currentBackStackEntry?.destination?.id
+                        navController.navigate(
+                            "reader/$identity/${Uri.encode(novelPath)}/${Uri.encode(nextChapterPath)}",
+                        ) {
+                            if (current != null) {
+                                popUpTo(current) { inclusive = true }
+                            }
+                        }
+                    },
                 )
             }
             composable(AnansiTab.MORE.route) {

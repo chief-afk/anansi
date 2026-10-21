@@ -155,6 +155,34 @@
     <string name="library_all_read">All read</string>
     <string name="cd_library_unread_badge">%1$d unread chapters</string>
 
+    <!-- Reader and reader settings sheet (the Black/OLED
+         chip renders dimmed with the BACKLOG tag and is inert) -->
+    <string name="cd_reader_settings">Reader settings</string>
+    <string name="cd_reader_previous_chapter">Previous chapter</string>
+    <string name="cd_reader_next_chapter">Next chapter</string>
+    <string name="reader_percent">%1$d%%</string>
+    <string name="reader_unavailable_title">Chapter unavailable</string>
+    <string name="reader_unavailable_body">This novel or its source is no longer in your library.</string>
+    <string name="reader_error_headline">Could not load this chapter</string>
+    <string name="reader_settings_title">Reader settings</string>
+    <string name="reader_theme_label">THEME</string>
+    <string name="reader_theme_dark">Dark</string>
+    <string name="reader_theme_slate">Slate</string>
+    <string name="reader_theme_paper">Paper</string>
+    <string name="reader_theme_black">Black</string>
+    <string name="reader_text_size_label">TEXT SIZE</string>
+    <string name="reader_text_size_aa">Aa</string>
+    <string name="reader_line_spacing_label">LINE SPACING</string>
+    <string name="reader_line_spacing_aa">≡</string>
+    <string name="reader_line_spacing_value">%1$.1f</string>
+    <string name="reader_typeface_label">TYPEFACE</string>
+    <string name="reader_typeface_system">System</string>
+    <string name="reader_typeface_serif">Serif</string>
+    <string name="reader_typeface_rounded">Rounded</string>
+    <string name="reader_keep_screen_on">Keep screen on while reading</string>
+    <string name="reader_volume_keys_scroll">Volume keys scroll</string>
+    <string name="reader_backlog_note">Paginated page mode, per-novel overrides, and OLED black arrive in a future release.</string>
+
     <!-- History -->
     <string name="history_today">Today</string>
     <string name="history_yesterday">Yesterday</string>

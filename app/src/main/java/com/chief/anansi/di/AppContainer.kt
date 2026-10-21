@@ -17,6 +17,8 @@ import com.chief.anansi.plugin.runtime.FetchBridge
 import com.chief.anansi.plugin.runtime.QuickJsSourceRuntime
 import com.chief.anansi.settings.SettingsStore
 import com.chief.anansi.ui.browse.SourceSessions
+import com.chief.anansi.ui.reader.ChapterTextCache
+import com.chief.anansi.ui.reader.ReaderSettingsStore
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,6 +31,11 @@ class AppContainer(context: Context) {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val settingsStore: SettingsStore = SettingsStore(context)
+    val readerSettingsStore: ReaderSettingsStore = ReaderSettingsStore(appContext)
+
+    // Fetched chapter text held in memory for the session; the reader's
+    // failed-retry and reopen paths read from it (no database text cache).
+    val chapterTextCache = ChapterTextCache()
 
     val database: AnansiDatabase = Room.databaseBuilder(
         appContext,
