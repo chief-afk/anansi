@@ -1,5 +1,6 @@
 package com.chief.anansi.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -35,4 +36,10 @@ data class ChapterEntity(
     val releaseDate: String?,
     val sortOrder: Int,
     val isRead: Boolean = false,
+    // New-arrival state (schema v3): set only by update-check inserts,
+    // cleared when the novel is opened. The declared default matches the
+    // migration's ADD COLUMN literal; Room verifies it against the migrated
+    // database.
+    @ColumnInfo(defaultValue = "0") val isNew: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val firstSeenAtEpochMs: Long = 0,
 )

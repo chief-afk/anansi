@@ -21,6 +21,16 @@ data class LibraryNovel(
     val continuePercent: Int?,
 )
 
+/** One Updates-tab row: a library novel with its new-arrival aggregate. */
+data class UpdateRow(
+    @Embedded val novel: NovelEntity,
+    val sourceName: String,
+    val sourceIdentity: String,
+    val newCount: Int,
+    val newestNewTitle: String?,
+    val newestNewUrl: String?,
+)
+
 @Dao
 interface NovelDao {
 
@@ -40,6 +50,37 @@ interface NovelDao {
         """,
     )
     fun observeLibrary(): Flow<List<LibraryNovel>>
+
+    /**
+     * One Updates-tab row per library novel: its source display line and the
+     * new-arrival aggregate (count plus the newest arrival, which is the
+     * arrival with the greatest source order). Rows the reader never checked
+     * carry `lastCheckedAtEpochMs = 0` and sort last.
+     */
+    @Query(
+        """
+        SELECT novels.*, sources.displayName AS sourceName, sources.identity AS sourceIdentity,
+               (SELECT COUNT(*) FROM chapters c
+                WHERE c.novelId = novels.id AND c.isNew = 1) AS newCount,
+               (SELECT c.title FROM chapters c
+                WHERE c.novelId = novels.id AND c.isNew = 1
+                ORDER BY c.sortOrder DESC LIMIT 1) AS newestNewTitle,
+               (SELECT c.chapterUrl FROM chapters c
+                WHERE c.novelId = novels.id AND c.isNew = 1
+                ORDER BY c.sortOrder DESC LIMIT 1) AS newestNewUrl
+        FROM novels
+        JOIN sources ON sources.id = novels.sourceId
+        WHERE novels.inLibrary = 1
+        ORDER BY novels.lastCheckedAtEpochMs DESC, novels.addedAt DESC
+        """,
+    )
+    fun observeUpdateRows(): Flow<List<UpdateRow>>
+
+    @Query("SELECT * FROM novels WHERE inLibrary = 1 ORDER BY addedAt DESC")
+    suspend fun libraryNovels(): List<NovelEntity>
+
+    @Query("UPDATE novels SET lastCheckedAtEpochMs = :checkedAt WHERE id = :novelId")
+    suspend fun touchChecked(novelId: Long, checkedAt: Long)
 
     @Insert
     suspend fun insertNovel(novel: NovelEntity): Long

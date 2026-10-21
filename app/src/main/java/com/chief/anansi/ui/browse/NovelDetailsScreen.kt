@@ -26,12 +26,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,38 +86,63 @@ fun NovelDetailsScreen(
         ttsController.start(identity, novelPath, null)
         showTtsDrawer = true
     }
-
-    Column(modifier = modifier.fillMaxSize()) {
-        DetailsHeader(title = state.novel?.title.orEmpty(), onBack = onBack)
-        when {
-            state.sourceMissing -> EmptyState(
-                icon = painterResource(R.drawable.ic_globe),
-                title = stringResource(R.string.details_source_missing_title),
-                body = stringResource(R.string.details_source_missing_body),
-            )
-
-            state.loading -> Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
-
-            state.failed -> SourceErrorState(
-                kind = state.failureKind,
-                reason = state.failureReason,
-                onRetry = viewModel::retry,
-            )
-
-            else -> NovelDetailsContent(
-                state = state,
-                onToggleLibrary = viewModel::toggleLibrary,
-                onMarkRead = viewModel::setChapterRead,
-                onOpenSheet = { showSheet = true },
-                onOpenChapter = onOpenChapter,
-                onListen = startListen,
-            )
+    // A failed or skipped refresh surfaces once as a snackbar; the screen
+    // keeps its loaded content either way.
+    val snackbarHostState = remember { SnackbarHostState() }
+    val refreshMessage = when {
+        state.refreshFailure != null -> state.refreshFailure
+        state.refreshSkipped -> stringResource(R.string.details_refresh_skipped)
+        else -> null
+    }
+    LaunchedEffect(refreshMessage) {
+        if (refreshMessage != null) {
+            snackbarHostState.showSnackbar(refreshMessage)
+            viewModel.refreshFailureShown()
         }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            DetailsHeader(
+                title = state.novel?.title.orEmpty(),
+                onBack = onBack,
+                refreshing = state.refreshing,
+                onRefresh = viewModel::refreshFromSource,
+            )
+            when {
+                state.sourceMissing -> EmptyState(
+                    icon = painterResource(R.drawable.ic_globe),
+                    title = stringResource(R.string.details_source_missing_title),
+                    body = stringResource(R.string.details_source_missing_body),
+                )
+
+                state.loading -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
+
+                state.failed -> SourceErrorState(
+                    kind = state.failureKind,
+                    reason = state.failureReason,
+                    onRetry = viewModel::retry,
+                )
+
+                else -> NovelDetailsContent(
+                    state = state,
+                    onToggleLibrary = viewModel::toggleLibrary,
+                    onMarkRead = viewModel::setChapterRead,
+                    onOpenSheet = { showSheet = true },
+                    onOpenChapter = onOpenChapter,
+                    onListen = startListen,
+                )
+            }
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 
     if (showTtsDrawer) {
@@ -138,7 +166,12 @@ fun NovelDetailsScreen(
 }
 
 @Composable
-private fun DetailsHeader(title: String, onBack: () -> Unit) {
+private fun DetailsHeader(
+    title: String,
+    onBack: () -> Unit,
+    refreshing: Boolean,
+    onRefresh: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -160,6 +193,21 @@ private fun DetailsHeader(title: String, onBack: () -> Unit) {
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
+        if (refreshing) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp)
+                    .size(24.dp),
+                strokeWidth = 2.dp,
+            )
+        } else {
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_refresh),
+                    contentDescription = stringResource(R.string.cd_details_refresh),
+                )
+            }
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.chief.anansi.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -39,4 +40,8 @@ data class NovelEntity(
     val url: String,
     val inLibrary: Boolean,
     val addedAt: Long,
+    // When this novel's chapters were last checked against its source
+    // (schema v3, the manual update-check phase); 0 means never checked.
+    // The declared default matches the migration's ADD COLUMN literal.
+    @ColumnInfo(defaultValue = "0") val lastCheckedAtEpochMs: Long = 0,
 )

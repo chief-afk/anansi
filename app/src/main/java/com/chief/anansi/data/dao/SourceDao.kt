@@ -14,6 +14,9 @@ interface SourceDao {
     @Query("SELECT * FROM sources WHERE identity = :identity")
     suspend fun findByIdentity(identity: String): SourceEntity?
 
+    @Query("SELECT * FROM sources WHERE id = :id")
+    suspend fun findById(id: Long): SourceEntity?
+
     @Query("SELECT * FROM sources WHERE identity = :identity")
     fun observeByIdentity(identity: String): Flow<SourceEntity?>
 

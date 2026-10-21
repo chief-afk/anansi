@@ -11,7 +11,9 @@ import com.chief.anansi.data.entity.ChapterEntity
 import com.chief.anansi.data.entity.NovelEntity
 import com.chief.anansi.data.entity.SourceEntity
 import com.chief.anansi.data.repo.LibraryRepository
+import com.chief.anansi.data.repo.NovelCheckResult
 import com.chief.anansi.data.repo.SourceRegistryRepository
+import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.plugin.SourceChapterItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -62,6 +64,15 @@ data class NovelDetailsUiState(
     val sort: ChapterSort = ChapterSort.SourceOrder,
     val showUnread: Boolean = true,
     val showRead: Boolean = true,
+    /** A manual chapter-list refresh is running (the appbar refresh). */
+    val refreshing: Boolean = false,
+    /**
+     * The failed refresh's reason for the snackbar; null means the last
+     * refresh succeeded or none ran yet.
+     */
+    val refreshFailure: String? = null,
+    /** The last refresh made no source call: this novel's source is disabled. */
+    val refreshSkipped: Boolean = false,
 )
 
 /**
@@ -75,6 +86,7 @@ class NovelDetailsViewModel(
     private val sourceRegistry: SourceRegistryRepository,
     private val sessions: SourceSessions,
     private val libraryRepository: LibraryRepository,
+    private val updateRepository: UpdateRepository,
     private val identity: String,
     private val novelPath: String,
 ) : ViewModel() {
@@ -83,6 +95,9 @@ class NovelDetailsViewModel(
     val state: StateFlow<NovelDetailsUiState> = _state
 
     private var entity: SourceEntity? = null
+
+    /** The library row whose arrivals this screen instance already cleared. */
+    private var arrivalsClearedFor: Long? = null
 
     /** The source's own chapter list, used until the novel is shelved. */
     private var sourceChapters: List<ChapterRow> = emptyList()
@@ -161,6 +176,46 @@ class NovelDetailsViewModel(
         viewModelScope.launch { loadDetails(loaded) }
     }
 
+    /**
+     * The appbar refresh: re-fetches this novel's chapter list from its
+     * source through the same per-novel check the Updates tab runs, so new
+     * chapters arrive with their new-arrival state. The chapter list itself
+     * updates through the observed rows.
+     */
+    fun refreshFromSource() {
+        val loaded = entity ?: return
+        if (_state.value.refreshing || _state.value.loading) return
+        _state.update { it.copy(refreshing = true, refreshFailure = null, refreshSkipped = false) }
+        viewModelScope.launch {
+            val rowId = _state.value.libraryRowId
+            var failure: String? = null
+            var skipped = false
+            try {
+                if (rowId != null) {
+                    when (val result = updateRepository.checkNovel(rowId)) {
+                        is NovelCheckResult.Failed -> failure = result.reason
+                        is NovelCheckResult.Skipped -> skipped = true
+                        is NovelCheckResult.Checked -> Unit
+                    }
+                } else {
+                    // Not shelved yet: the details call is the same source
+                    // path; keep the screen instead of failing it wholesale.
+                    loadDetails(loaded)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failure = e.message ?: "unknown failure"
+            }
+            _state.update { it.copy(refreshing = false, refreshFailure = failure, refreshSkipped = skipped) }
+        }
+    }
+
+    /** The screen surfaces the failure once, then acknowledges it. */
+    fun refreshFailureShown() {
+        _state.update { it.copy(refreshFailure = null, refreshSkipped = false) }
+    }
+
     private suspend fun loadDetails(loaded: SourceEntity) {
         try {
             val source = sessions.load(loaded)
@@ -214,6 +269,13 @@ class NovelDetailsViewModel(
                     }
                 }
                 .collect { (row, chapters) ->
+                    // Opening the novel clears its new-arrival chapters once
+                    // per screen instance (v1's unread-on-open behavior).
+                    val openedRowId = row?.id
+                    if (openedRowId != null && openedRowId != arrivalsClearedFor) {
+                        arrivalsClearedFor = openedRowId
+                        updateRepository.clearNewArrivals(openedRowId)
+                    }
                     _state.update { current ->
                         current.copy(
                             libraryRowId = row?.id,
@@ -247,6 +309,7 @@ class NovelDetailsViewModel(
                         sourceRegistry = container.sourceRegistryRepository,
                         sessions = container.sourceSessions,
                         libraryRepository = container.libraryRepository,
+                        updateRepository = container.updateRepository,
                         identity = identity,
                         novelPath = novelPath,
                     )

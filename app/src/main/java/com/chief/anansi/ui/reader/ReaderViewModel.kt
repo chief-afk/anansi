@@ -12,6 +12,7 @@ import com.chief.anansi.data.entity.ReadingProgressEntity
 import com.chief.anansi.data.repo.HistoryRepository
 import com.chief.anansi.data.repo.LibraryRepository
 import com.chief.anansi.data.repo.SourceRegistryRepository
+import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.ui.browse.SourceSessions
 import com.chief.anansi.ui.browse.failureKindOf
 import kotlinx.coroutines.CancellationException
@@ -64,6 +65,7 @@ class ReaderViewModel(
     private val sessions: SourceSessions,
     private val libraryRepository: LibraryRepository,
     private val historyRepository: HistoryRepository,
+    private val updateRepository: UpdateRepository,
     private val textCache: ChapterTextCache,
     private val settingsStore: ReaderSettingsStore,
     private val appScope: CoroutineScope,
@@ -177,6 +179,9 @@ class ReaderViewModel(
 
         this.novelId = novel.id
         this.currentChapter = current
+        // Opening the novel in the reader also clears its new-arrival state
+        // (v1's unread-on-open; the details screen open covers the other path).
+        updateRepository.clearNewArrivals(novel.id)
 
         val progress = shelf.progress.firstOrNull()
         val restoresThisChapter = progress != null &&
@@ -289,6 +294,7 @@ class ReaderViewModel(
                     sessions = container.sourceSessions,
                     libraryRepository = container.libraryRepository,
                     historyRepository = container.historyRepository,
+                    updateRepository = container.updateRepository,
                     textCache = container.chapterTextCache,
                     settingsStore = container.readerSettingsStore,
                     appScope = container.appScope,

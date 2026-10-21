@@ -10,6 +10,7 @@ import com.chief.anansi.data.AnansiDatabase
 import com.chief.anansi.data.repo.HistoryRepository
 import com.chief.anansi.data.repo.LibraryRepository
 import com.chief.anansi.data.repo.SourceRegistryRepository
+import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.error.PersistentSourceErrorRegistry
 import com.chief.anansi.plugin.error.SourceErrorRegistry
@@ -51,7 +52,7 @@ class AppContainer(context: Context) {
         appContext,
         AnansiDatabase::class.java,
         AnansiDatabase.NAME,
-    ).addMigrations(AnansiDatabase.MIGRATION_1_2).build()
+    ).addMigrations(AnansiDatabase.MIGRATION_1_2, AnansiDatabase.MIGRATION_2_3).build()
 
     // The app's one image loader; covers load through it only.
     val imageLoader: ImageLoader = ImageLoader.Builder(appContext)
@@ -97,6 +98,14 @@ class AppContainer(context: Context) {
 
     val libraryRepository = LibraryRepository(database)
     val historyRepository = HistoryRepository(database)
+
+    // Manual update checks: per-novel and check-all over library novels,
+    // each through the novel's own loaded source adapter.
+    val updateRepository = UpdateRepository(
+        database = database,
+        sourceRegistry = sourceRegistryRepository,
+        loadSource = { sourceSessions.load(it) },
+    )
 
     private fun readAsset(name: String): String =
         appContext.assets.open(name).bufferedReader().use { it.readText() }

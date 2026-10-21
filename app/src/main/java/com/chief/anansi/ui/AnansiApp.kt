@@ -95,7 +95,20 @@ fun AnansiApp(
             composable(AnansiTab.LIBRARY.route) {
                 LibraryScreen(onBrowseSources = { navController.navigateToTab(AnansiTab.BROWSE) })
             }
-            composable(AnansiTab.UPDATES.route) { UpdatesScreen() }
+            composable(AnansiTab.UPDATES.route) {
+                UpdatesScreen(
+                    onOpenNovel = { identity, novelPath ->
+                        navController.navigate(
+                            "browse/source/$identity/novel/${Uri.encode(novelPath)}",
+                        )
+                    },
+                    onPlayNewest = { identity, novelPath, chapterPath ->
+                        navController.navigate(
+                            "reader/$identity/${Uri.encode(novelPath)}/${Uri.encode(chapterPath)}",
+                        )
+                    },
+                )
+            }
             composable(AnansiTab.HISTORY.route) { HistoryScreen() }
             composable(AnansiTab.BROWSE.route) {
                 BrowseScreen(

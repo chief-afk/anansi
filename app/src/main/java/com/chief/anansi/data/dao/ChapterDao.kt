@@ -41,4 +41,8 @@ interface ChapterDao {
 
     @Query("UPDATE chapters SET isRead = :isRead WHERE novelId = :novelId")
     suspend fun setAllChaptersRead(novelId: Long, isRead: Boolean)
+
+    /** Opening the novel clears its new-arrival state (v1 unread-on-open). */
+    @Query("UPDATE chapters SET isNew = 0 WHERE novelId = :novelId AND isNew = 1")
+    suspend fun clearNewArrivals(novelId: Long)
 }

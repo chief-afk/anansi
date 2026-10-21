@@ -20,6 +20,18 @@
     <!-- Updates -->
     <string name="updates_manual_note">Manual checks only for now; automatic background updates are on the backlog.</string>
     <string name="updates_empty_title">All caught up</string>
+    <string name="cd_updates_check_now">Check all sources for updates</string>
+    <string name="updates_not_checked_header">Not checked</string>
+    <string name="updates_row_not_checked">Not checked yet</string>
+    <string name="updates_row_caught_up">Chapter feed caught up</string>
+    <string name="updates_row_meta">%1$s · %2$s</string>
+    <string name="updates_row_checked_at">checked %1$s</string>
+    <string name="updates_summary">%1$d updated, %2$d caught up, %3$d failed, %4$d skipped</string>
+    <string name="cd_updates_play_newest">Play the newest new chapter</string>
+    <plurals name="updates_row_new_chapters">
+        <item quantity="one">%1$d new chapter, up to %2$s</item>
+        <item quantity="other">%1$d new chapters, up to %2$s</item>
+    </plurals>
 
     <!-- History empty state (no board mock; consistent with the others) -->
     <string name="history_empty_title">No reading history yet</string>
@@ -139,6 +151,8 @@
     <string name="cd_details_mark_unread">Mark chapter unread</string>
     <string name="details_source_missing_title">Source not installed</string>
     <string name="details_source_missing_body">The source this novel belongs to is no longer registered.</string>
+    <string name="cd_details_refresh">Check this novel for updates</string>
+    <string name="details_refresh_skipped">This source is disabled, so it cannot be checked.</string>
     <string name="details_sheet_title">Sort and filter</string>
     <string name="details_sort_label">SORT ORDER</string>
     <string name="details_sort_source">By source</string>

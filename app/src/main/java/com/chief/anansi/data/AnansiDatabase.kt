@@ -28,7 +28,7 @@ import com.chief.anansi.data.entity.SourceErrorEntity
         ReadingProgressEntity::class,
         SourceErrorEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AnansiDatabase : RoomDatabase() {
@@ -58,6 +58,19 @@ abstract class AnansiDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS `source_errors` (" +
                         "`sourceId` TEXT NOT NULL, `kind` TEXT NOT NULL, `reason` TEXT NOT NULL, " +
                         "`updatedAt` INTEGER NOT NULL, PRIMARY KEY(`sourceId`))",
+                )
+            }
+        }
+
+        /** v3 (manual update checks): new-arrival state + check bookkeeping. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE chapters ADD COLUMN isNew INTEGER NOT NULL DEFAULT 0")
+                db.execSQL(
+                    "ALTER TABLE chapters ADD COLUMN firstSeenAtEpochMs INTEGER NOT NULL DEFAULT 0",
+                )
+                db.execSQL(
+                    "ALTER TABLE novels ADD COLUMN lastCheckedAtEpochMs INTEGER NOT NULL DEFAULT 0",
                 )
             }
         }
