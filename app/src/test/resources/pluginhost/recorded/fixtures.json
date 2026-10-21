@@ -1,0 +1,12 @@
+{
+  "https://novelfull.com/most-popular?page=1": {
+    "status": 200,
+    "statusText": "OK",
+    "file": "most-popular-page-1.html"
+  },
+  "https://novelfull.com/reincarnation-of-the-strongest-sword-god/chapter-1-starting-over.html": {
+    "status": 200,
+    "statusText": "OK",
+    "file": "chapter-1-starting-over.html"
+  }
+}

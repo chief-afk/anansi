@@ -10,6 +10,10 @@ navigationCompose = "2.10.2"
 datastorePreferences = "1.2.1"
 room = "2.8.5"
 coil = "3.6.3"
+kotlinxSerialization = "1.12.0"
+okhttp = "5.5.0"
+quickjsKt = "1.0.15"
+junit = "4.13.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,10 +34,16 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 coil = { group = "io.coil-kt.coil3", name = "coil", version.ref = "coil" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+quickjs-kt = { group = "io.github.dokar3", name = "quickjs-kt", version.ref = "quickjsKt" }
+quickjs-kt-jvm = { group = "io.github.dokar3", name = "quickjs-kt-jvm", version.ref = "quickjsKt" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 room = { id = "androidx.room", version.ref = "room" }
