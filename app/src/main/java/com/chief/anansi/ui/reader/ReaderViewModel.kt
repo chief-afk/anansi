@@ -15,6 +15,7 @@ import com.chief.anansi.data.repo.SourceRegistryRepository
 import com.chief.anansi.ui.browse.SourceSessions
 import com.chief.anansi.ui.browse.failureKindOf
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -60,6 +61,7 @@ class ReaderViewModel(
     private val historyRepository: HistoryRepository,
     private val textCache: ChapterTextCache,
     private val settingsStore: ReaderSettingsStore,
+    private val appScope: CoroutineScope,
     private val identity: String,
     private val novelPath: String,
     private val chapterPath: String,
@@ -236,7 +238,10 @@ class ReaderViewModel(
         val write = pendingWrite ?: return
         pendingWrite = null
         lastWriteAtMs = System.currentTimeMillis()
-        viewModelScope.launch {
+        // Launches on the app scope, not viewModelScope: reader exit and the
+        // footer's chapter switch tear the back-stack entry down, whose
+        // clear() would cancel the definitive write before Room commits it.
+        appScope.launch {
             historyRepository.upsertProgress(
                 ReadingProgressEntity(
                     novelId = novelId,
@@ -280,6 +285,7 @@ class ReaderViewModel(
                     historyRepository = container.historyRepository,
                     textCache = container.chapterTextCache,
                     settingsStore = container.readerSettingsStore,
+                    appScope = container.appScope,
                     identity = identity,
                     novelPath = novelPath,
                     chapterPath = chapterPath,

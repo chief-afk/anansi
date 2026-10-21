@@ -28,7 +28,9 @@ import okhttp3.OkHttpClient
 class AppContainer(context: Context) {
     private val appContext = context.applicationContext
 
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Application-lifetime scope for writes that must outlive the screen that
+    // started them (reader progress flushes, registry reports).
+    val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val settingsStore: SettingsStore = SettingsStore(context)
     val readerSettingsStore: ReaderSettingsStore = ReaderSettingsStore(appContext)
