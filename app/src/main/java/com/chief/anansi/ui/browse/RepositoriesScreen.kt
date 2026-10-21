@@ -47,10 +47,11 @@ import com.chief.anansi.plugin.repo.RepoRegistrationService
 
 /**
  * The repository manager: the add-repo card with the verified
- * manifest line and failed-entry reasons, the installed repositories, and
- * the neutrality copy. The URL rule is https-only with the loopback
- * exception; foreign manifests are probed and labeled at install, never
- * silently dropped.
+ * manifest line and failed-entry reasons, the OPDS catalog card (
+ * catalogs are added through this repository flow), the installed
+ * repositories, and the neutrality copy. The URL rule is https-only with
+ * the loopback exception; foreign manifests are probed and labeled at
+ * install, never silently dropped.
  */
 @Composable
 fun RepositoriesScreen(
@@ -60,6 +61,7 @@ fun RepositoriesScreen(
 ) {
     val repos by viewModel.repos.collectAsStateWithLifecycle()
     val add by viewModel.add.collectAsStateWithLifecycle()
+    val catalogAdd by viewModel.catalogAdd.collectAsStateWithLifecycle()
     var url by remember { mutableStateOf("") }
     var removeCandidate by remember { mutableStateOf<String?>(null) }
 
@@ -94,6 +96,12 @@ fun RepositoriesScreen(
             state = add,
             onAdd = { viewModel.addRepo(url) },
             onDismissResult = viewModel::dismissResult,
+        )
+
+        AddCatalogCard(
+            state = catalogAdd,
+            onAdd = viewModel::addCatalog,
+            onDismissResult = viewModel::dismissCatalogResult,
         )
 
         if (repos.isEmpty()) {
@@ -211,6 +219,107 @@ private fun AddRepoCard(
         }
         state.report?.let { report ->
             VerifiedResult(report = report, onDismiss = onDismissResult)
+        }
+    }
+}
+
+@Composable
+private fun AddCatalogCard(
+    state: CatalogAddUiState,
+    onAdd: (String) -> Unit,
+    onDismissResult: () -> Unit,
+) {
+    var catalogUrl by remember { mutableStateOf("") }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.opds_url_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = catalogUrl,
+            onValueChange = { catalogUrl = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.opds_url_hint)) },
+            singleLine = true,
+            enabled = !state.working,
+        )
+        Button(
+            onClick = { onAdd(catalogUrl) },
+            enabled = !state.working && catalogUrl.isNotBlank(),
+        ) {
+            Text(stringResource(R.string.opds_add_action))
+        }
+        if (state.working) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                Text(
+                    text = stringResource(R.string.opds_add_working),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        state.error?.let { reason ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.opds_add_failed),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    text = reason,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        }
+        state.added?.let { added ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_check),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        text = stringResource(R.string.opds_verified_title),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.opds_verified_line, added.title),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = if (added.created) {
+                        stringResource(R.string.repo_line_added, 1)
+                    } else {
+                        stringResource(R.string.opds_already_added)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(onClick = onDismissResult, contentPadding = PaddingValues(0.dp)) {
+                    Text(stringResource(R.string.repo_result_dismiss))
+                }
+            }
         }
     }
 }

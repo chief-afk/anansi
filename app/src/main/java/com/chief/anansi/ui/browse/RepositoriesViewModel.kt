@@ -9,6 +9,7 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.chief.anansi.AnansiApplication
 import com.chief.anansi.data.repo.SourceRegistryRepository
 import com.chief.anansi.plugin.error.SourcePluginException
+import com.chief.anansi.plugin.opds.OpdsCatalogRegistration
 import com.chief.anansi.plugin.repo.RepoRegistrationService
 import java.net.URI
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,8 +35,16 @@ data class RepoAddUiState(
     val error: String? = null,
 )
 
+/** The add-OPDS-catalog flow state, the same shape as the repo flow's. */
+data class CatalogAddUiState(
+    val working: Boolean = false,
+    val added: OpdsCatalogRegistration.CatalogAdded? = null,
+    val error: String? = null,
+)
+
 class RepositoriesViewModel(
     private val service: RepoRegistrationService,
+    private val opdsRegistration: OpdsCatalogRegistration,
     sourceRegistry: SourceRegistryRepository,
 ) : ViewModel() {
 
@@ -59,6 +68,9 @@ class RepositoriesViewModel(
     private val _add = MutableStateFlow(RepoAddUiState())
     val add: StateFlow<RepoAddUiState> = _add.asStateFlow()
 
+    private val _catalogAdd = MutableStateFlow(CatalogAddUiState())
+    val catalogAdd: StateFlow<CatalogAddUiState> = _catalogAdd.asStateFlow()
+
     fun addRepo(url: String) {
         if (_add.value.working) return
         viewModelScope.launch {
@@ -73,12 +85,31 @@ class RepositoriesViewModel(
         }
     }
 
+    /** Adds an OPDS catalog by URL; the failure reason renders verbatim. */
+    fun addCatalog(url: String) {
+        if (_catalogAdd.value.working) return
+        viewModelScope.launch {
+            _catalogAdd.value = CatalogAddUiState(working = true)
+            _catalogAdd.value = try {
+                CatalogAddUiState(added = opdsRegistration.addCatalog(url))
+            } catch (e: SourcePluginException) {
+                CatalogAddUiState(error = e.error.reason)
+            } catch (e: Exception) {
+                CatalogAddUiState(error = e.message ?: "Unexpected error")
+            }
+        }
+    }
+
     fun removeRepo(repoUrl: String) {
         viewModelScope.launch { service.removeRepo(repoUrl) }
     }
 
     fun dismissResult() {
         if (!_add.value.working) _add.value = RepoAddUiState()
+    }
+
+    fun dismissCatalogResult() {
+        if (!_catalogAdd.value.working) _catalogAdd.value = CatalogAddUiState()
     }
 
     private fun hostOf(url: String): String = try {
@@ -93,6 +124,7 @@ class RepositoriesViewModel(
                 val container = (this[APPLICATION_KEY] as AnansiApplication).container
                 RepositoriesViewModel(
                     service = container.repoRegistrationService,
+                    opdsRegistration = container.opdsCatalogRegistration,
                     sourceRegistry = container.sourceRegistryRepository,
                 )
             }

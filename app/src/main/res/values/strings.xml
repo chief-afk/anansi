@@ -82,6 +82,17 @@
     <string name="repo_remove_confirm_body">All %1$d sources from this repository will be removed from Browse.</string>
     <string name="repo_neutrality">Repositories are third-party. Anansi does not host, curate, or endorse any of them. Install a repository only if you trust its maintainer; sources run sandboxed and request only the capabilities they need.</string>
 
+    <!-- OPDS catalogs ; catalogs are
+         user-added only, no bundled or suggested URLs -->
+    <string name="opds_url_label">OPDS CATALOG URL</string>
+    <string name="opds_url_hint">https://example.com/opds</string>
+    <string name="opds_add_action">Add catalog</string>
+    <string name="opds_add_working">Fetching catalog feed…</string>
+    <string name="opds_add_failed">Could not add catalog</string>
+    <string name="opds_verified_title">Verified catalog</string>
+    <string name="opds_verified_line">OPDS 1.x · %1$s</string>
+    <string name="opds_already_added">already added</string>
+
     <!-- Per-source management -->
     <string name="manage_enabled_label">Enabled</string>
     <string name="manage_enabled_caption">Disabled sources are excluded from Browse and search.</string>

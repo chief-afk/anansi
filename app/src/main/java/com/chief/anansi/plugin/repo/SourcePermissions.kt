@@ -1,5 +1,7 @@
 package com.chief.anansi.plugin.repo
 
+import com.chief.anansi.data.repo.SourceEcosystem
+
 /**
  * The capability declarations a source displays (
  * modeled on IReader's NETWORK/STORAGE/WEBVIEW declaration set). Resolution
@@ -22,7 +24,9 @@ enum class SourcePermission(val label: String) {
 object SourcePermissions {
 
     fun resolve(ecosystem: String): List<SourcePermission> = when (ecosystem) {
-        ECOSYSTEM_LNREADER -> listOf(SourcePermission.NETWORK)
+        // LNReader plugins fetch through the host bridge; OPDS catalogs
+        // fetch feeds and acquisition documents through the shared client.
+        ECOSYSTEM_LNREADER, SourceEcosystem.OPDS.key -> listOf(SourcePermission.NETWORK)
         else -> emptyList()
     }
 }

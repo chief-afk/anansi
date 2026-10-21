@@ -14,6 +14,7 @@ import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.error.PersistentSourceErrorRegistry
 import com.chief.anansi.plugin.error.SourceErrorRegistry
+import com.chief.anansi.plugin.opds.OpdsCatalogRegistration
 import com.chief.anansi.plugin.repo.RepoRegistrationService
 import com.chief.anansi.plugin.repo.RepoHttp
 import com.chief.anansi.plugin.runtime.FetchBridge
@@ -89,11 +90,20 @@ class AppContainer(context: Context) {
 
     // Loads registered sources into live plugin adapters for the discovery
     // screens (catalog, search, details); the dist cache keeps reloads off
-    // the network.
+    // the network. OPDS catalogs load through the same sessions without the
+    // plugin runtime.
     val sourceSessions = SourceSessions(
         runtime = jsSourceRuntime,
         errorRegistry = sourceErrorRegistry,
         http = RepoHttp(okHttpClient),
+        client = okHttpClient,
+    )
+
+    // The add-OPDS-catalog flow: verifies the root feed and registers the
+    // catalog through the same registry path repositories use.
+    val opdsCatalogRegistration = OpdsCatalogRegistration(
+        client = okHttpClient,
+        sourceRegistry = sourceRegistryRepository,
     )
 
     val libraryRepository = LibraryRepository(database)

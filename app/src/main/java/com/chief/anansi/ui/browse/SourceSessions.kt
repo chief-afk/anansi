@@ -1,6 +1,7 @@
 package com.chief.anansi.ui.browse
 
 import com.chief.anansi.data.entity.SourceEntity
+import com.chief.anansi.data.repo.SourceEcosystem
 import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.Source
 import com.chief.anansi.plugin.error.SourceErrorRegistry
@@ -9,10 +10,13 @@ import com.chief.anansi.plugin.lnreader.v3.DEFAULT_IMAGE_USER_AGENT
 import com.chief.anansi.plugin.lnreader.v3.V3ManifestItem
 import com.chief.anansi.plugin.lnreader.v3.V3PluginLoader
 import com.chief.anansi.plugin.lnreader.v3.V3Source
+import com.chief.anansi.plugin.opds.OpdsHttp
+import com.chief.anansi.plugin.opds.OpdsSource
 import com.chief.anansi.plugin.repo.RepoHttp
 import com.chief.anansi.plugin.repo.SourceGenerations
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.OkHttpClient
 
 /**
  * Loads registered sources into live [Source] adapters for the discovery
@@ -20,18 +24,35 @@ import kotlinx.coroutines.sync.withLock
  * so a screen never holds a slot another screen's load has replaced, and the
  * runtime keeps each plugin's storage scope across reloads, so saved filter
  * values survive. Dist text is cached per dist url to keep reloads off the
- * network.
+ * network. OPDS catalogs skip the plugin path entirely: they are a
+ * zero-runtime source type whose adapter reads the registered catalog URL.
  */
 class SourceSessions(
     private val runtime: JsSourceRuntime,
     private val errorRegistry: SourceErrorRegistry,
     private val http: RepoHttp,
+    client: OkHttpClient,
 ) {
+    private val opdsHttp = OpdsHttp(client)
     private val distCache = HashMap<String, String>()
     private val mutex = Mutex()
 
     /** Loads [entity]'s plugin into a fresh adapter; failures are loud. */
     suspend fun load(entity: SourceEntity): Source {
+        if (entity.ecosystem == SourceEcosystem.OPDS.key) {
+            require(entity.distUrl.isNotEmpty()) {
+                "Source \"${entity.sourceId}\" has no catalog URL registered"
+            }
+            return OpdsSource(
+                catalogUrl = entity.distUrl,
+                http = opdsHttp,
+                registry = errorRegistry,
+                catalogId = entity.sourceId,
+                id = entity.id,
+                name = entity.displayName,
+                lang = entity.lang,
+            )
+        }
         val dist = mutex.withLock {
             distCache.getOrPut(entity.distUrl) {
                 http.getText(entity.distUrl, "Plugin \"${entity.sourceId}\" dist")
