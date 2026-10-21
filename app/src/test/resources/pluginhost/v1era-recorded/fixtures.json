@@ -1,0 +1,7 @@
+{
+  "https://libread.com/completed-novels/1": {"status": 200, "statusText": "OK", "file": "popular-completed-1.html"},
+  "https://libread.com/sort/latest-release-novels/1": {"status": 200, "statusText": "OK", "file": "popular-latest-1.html"},
+  "https://libread.com/libread/martial-world-novel-137346": {"status": 200, "statusText": "OK", "file": "novel-martial-world.html"},
+  "https://libread.com/libread/martial-world-novel-137346/chapter-01": {"status": 200, "statusText": "OK", "file": "chapter-martial-world-1.html"},
+  "https://libread.com/search/": {"status": 200, "statusText": "OK", "file": "search-martial.html"}
+}
