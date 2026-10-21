@@ -1,5 +1,6 @@
 package com.chief.anansi.ui.browse
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,9 +48,11 @@ import com.chief.anansi.ui.components.ScreenTitle
  * The Browse Sources tab: one flat list of installed sources
  * across all repos and ecosystems, pinned first, with the ecosystem and
  * API generation footer per source, the Repositories chip, and the
- * no-repositories empty state. Tapping a source opens its
- * catalog;
- * the global search lens rides on the appbar.
+ * no-repositories empty state. The fixed Local pseudo-source
+ * rides above the list as its own entry, before and after the
+ * first import. Tapping a source opens its catalog (disabled
+ * sources go to their management surface); the global search lens rides on
+ * the appbar.
  */
 @Composable
 fun BrowseScreen(
@@ -57,6 +60,7 @@ fun BrowseScreen(
     onOpenSource: (String) -> Unit,
     onOpenCatalog: (BrowseSourceRow) -> Unit,
     onOpenSearch: () -> Unit,
+    onOpenLocal: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BrowseViewModel = viewModel(factory = BrowseViewModel.Factory),
 ) {
@@ -106,62 +110,100 @@ fun BrowseScreen(
                 CircularProgressIndicator()
             }
 
-            state.sources.isEmpty() -> EmptyState(
-                icon = painterResource(R.drawable.ic_globe),
-                title = stringResource(R.string.browse_empty_title),
-                body = stringResource(R.string.browse_empty_body),
-                action = {
-                    Button(onClick = onOpenRepositories) {
-                        Text(stringResource(R.string.browse_add_repository))
+            else -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
+                item(key = "header-local") {
+                    SectionHeader(stringResource(R.string.browse_section_local))
+                }
+                item(key = "local-entry") {
+                    LocalEntryRow(onOpenLocal = onOpenLocal)
+                }
+                if (state.sources.isEmpty()) {
+                    item(key = "browse-empty") {
+                        EmptyState(
+                            icon = painterResource(R.drawable.ic_globe),
+                            title = stringResource(R.string.browse_empty_title),
+                            body = stringResource(R.string.browse_empty_body),
+                            action = {
+                                Button(onClick = onOpenRepositories) {
+                                    Text(stringResource(R.string.browse_add_repository))
+                                }
+                            },
+                        )
                     }
-                },
-            )
-
-            else -> SourceList(
-                state = state,
-                onOpenCatalog = onOpenCatalog,
-                onOpenSource = onOpenSource,
-                onTogglePin = viewModel::togglePin,
-                onSetEnabled = viewModel::setEnabled,
-            )
+                } else {
+                    val pinned = state.sources.filter { it.pinned }
+                    val all = state.sources.filterNot { it.pinned }
+                    if (pinned.isNotEmpty()) {
+                        item(key = "header-pinned") {
+                            SectionHeader(stringResource(R.string.browse_section_pinned))
+                        }
+                        items(pinned, key = { "pinned-${it.identity}" }) { row ->
+                            SourceRow(row, onOpenCatalog, onOpenSource, viewModel::togglePin, viewModel::setEnabled)
+                        }
+                    }
+                    item(key = "header-all") {
+                        SectionHeader(stringResource(R.string.browse_section_all, all.size))
+                    }
+                    items(all, key = { it.identity }) { row ->
+                        SourceRow(row, onOpenCatalog, onOpenSource, viewModel::togglePin, viewModel::setEnabled)
+                    }
+                    item(key = "footer") {
+                        Text(
+                            text = footerSummary(state),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 12.dp),
+                        )
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun SourceList(
-    state: BrowseUiState,
-    onOpenCatalog: (BrowseSourceRow) -> Unit,
-    onOpenSource: (String) -> Unit,
-    onTogglePin: (BrowseSourceRow) -> Unit,
-    onSetEnabled: (BrowseSourceRow, Boolean) -> Unit,
-) {
-    val pinned = state.sources.filter { it.pinned }
-    val all = state.sources.filterNot { it.pinned }
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp),
+private fun LocalEntryRow(onOpenLocal: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpenLocal)
+            .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
     ) {
-        if (pinned.isNotEmpty()) {
-            item(key = "header-pinned") {
-                SectionHeader(stringResource(R.string.browse_section_pinned))
-            }
-            items(pinned, key = { "pinned-${it.identity}" }) { row ->
-                SourceRow(row, onOpenCatalog, onOpenSource, onTogglePin, onSetEnabled)
-            }
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_folder),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
         }
-        item(key = "header-all") {
-            SectionHeader(stringResource(R.string.browse_section_all, all.size))
-        }
-        items(all, key = { it.identity }) { row ->
-            SourceRow(row, onOpenCatalog, onOpenSource, onTogglePin, onSetEnabled)
-        }
-        item(key = "footer") {
+        Spacer(Modifier.width(12.dp))
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
+        ) {
             Text(
-                text = footerSummary(state),
-                style = MaterialTheme.typography.bodySmall,
+                text = stringResource(R.string.screen_local),
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(R.string.browse_local_meta),
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 12.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }

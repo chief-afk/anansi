@@ -14,6 +14,7 @@ import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.error.PersistentSourceErrorRegistry
 import com.chief.anansi.plugin.error.SourceErrorRegistry
+import com.chief.anansi.plugin.local.LocalLibrary
 import com.chief.anansi.plugin.opds.OpdsCatalogRegistration
 import com.chief.anansi.plugin.repo.RepoRegistrationService
 import com.chief.anansi.plugin.repo.RepoHttp
@@ -23,6 +24,7 @@ import com.chief.anansi.settings.SettingsStore
 import com.chief.anansi.ui.browse.SourceSessions
 import com.chief.anansi.ui.reader.ChapterTextCache
 import com.chief.anansi.ui.reader.ReaderSettingsStore
+import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -90,13 +92,24 @@ class AppContainer(context: Context) {
 
     // Loads registered sources into live plugin adapters for the discovery
     // screens (catalog, search, details); the dist cache keeps reloads off
-    // the network. OPDS catalogs load through the same sessions without the
-    // plugin runtime.
+    // the network. OPDS catalogs and the local library load through the same
+    // sessions without the plugin runtime.
+    //
+    // The local import pipeline and stored library: EPUB/TXT files land in
+    // app-private storage under filesDir/local/ and read offline forever.
+    val localLibrary = LocalLibrary(
+        database = database,
+        sourceRegistry = sourceRegistryRepository,
+        errorRegistry = sourceErrorRegistry,
+        root = File(appContext.filesDir, "local"),
+    )
+
     val sourceSessions = SourceSessions(
         runtime = jsSourceRuntime,
         errorRegistry = sourceErrorRegistry,
         http = RepoHttp(okHttpClient),
         client = okHttpClient,
+        localLibrary = localLibrary,
     )
 
     // The add-OPDS-catalog flow: verifies the root feed and registers the

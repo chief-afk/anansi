@@ -10,6 +10,8 @@ import com.chief.anansi.plugin.lnreader.v3.DEFAULT_IMAGE_USER_AGENT
 import com.chief.anansi.plugin.lnreader.v3.V3ManifestItem
 import com.chief.anansi.plugin.lnreader.v3.V3PluginLoader
 import com.chief.anansi.plugin.lnreader.v3.V3Source
+import com.chief.anansi.plugin.local.LocalLibrary
+import com.chief.anansi.plugin.local.LocalSource
 import com.chief.anansi.plugin.opds.OpdsHttp
 import com.chief.anansi.plugin.opds.OpdsSource
 import com.chief.anansi.plugin.repo.RepoHttp
@@ -24,14 +26,16 @@ import okhttp3.OkHttpClient
  * so a screen never holds a slot another screen's load has replaced, and the
  * runtime keeps each plugin's storage scope across reloads, so saved filter
  * values survive. Dist text is cached per dist url to keep reloads off the
- * network. OPDS catalogs skip the plugin path entirely: they are a
- * zero-runtime source type whose adapter reads the registered catalog URL.
+ * network. OPDS catalogs and the Local library skip the plugin path
+ * entirely: they are zero-runtime source types (OPDS reads its registered
+ * catalog URL, Local reads its stored file copies).
  */
 class SourceSessions(
     private val runtime: JsSourceRuntime,
     private val errorRegistry: SourceErrorRegistry,
     private val http: RepoHttp,
     client: OkHttpClient,
+    private val localLibrary: LocalLibrary,
 ) {
     private val opdsHttp = OpdsHttp(client)
     private val distCache = HashMap<String, String>()
@@ -39,6 +43,15 @@ class SourceSessions(
 
     /** Loads [entity]'s plugin into a fresh adapter; failures are loud. */
     suspend fun load(entity: SourceEntity): Source {
+        if (entity.ecosystem == SourceEcosystem.LOCAL.key) {
+            return LocalSource(
+                library = localLibrary,
+                registry = errorRegistry,
+                id = entity.id,
+                name = entity.displayName,
+                lang = entity.lang,
+            )
+        }
         if (entity.ecosystem == SourceEcosystem.OPDS.key) {
             require(entity.distUrl.isNotEmpty()) {
                 "Source \"${entity.sourceId}\" has no catalog URL registered"

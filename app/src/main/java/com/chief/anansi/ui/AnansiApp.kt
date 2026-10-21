@@ -23,6 +23,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.chief.anansi.settings.SeedTheme
 import com.chief.anansi.settings.ThemeMode
+import com.chief.anansi.plugin.local.LocalLibrary
 import com.chief.anansi.ui.browse.BrowseScreen
 import com.chief.anansi.ui.browse.CatalogScreen
 import com.chief.anansi.ui.browse.NovelDetailsScreen
@@ -31,6 +32,7 @@ import com.chief.anansi.ui.browse.SearchScreen
 import com.chief.anansi.ui.browse.SourceManageScreen
 import com.chief.anansi.ui.history.HistoryScreen
 import com.chief.anansi.ui.library.LibraryScreen
+import com.chief.anansi.ui.local.LocalScreen
 import com.chief.anansi.ui.more.AppearanceScreen
 import com.chief.anansi.ui.more.AudioSettingsScreen
 import com.chief.anansi.ui.more.MoreScreen
@@ -40,6 +42,7 @@ import com.chief.anansi.ui.updates.UpdatesScreen
 private const val APPEARANCE_ROUTE = "appearance"
 private const val AUDIO_ROUTE = "audio"
 private const val REPOSITORIES_ROUTE = "browse/repositories"
+private const val LOCAL_ROUTE = "browse/local"
 private const val SOURCE_MANAGE_ROUTE = "browse/source/{identity}"
 private const val CATALOG_ROUTE = "browse/source/{identity}/catalog"
 private const val SEARCH_ROUTE = "browse/search?identity={identity}"
@@ -120,6 +123,17 @@ fun AnansiApp(
                         navController.navigate("browse/source/${row.identity}/catalog")
                     },
                     onOpenSearch = { navController.navigate("browse/search") },
+                    onOpenLocal = { navController.navigate(LOCAL_ROUTE) },
+                )
+            }
+            composable(LOCAL_ROUTE) {
+                LocalScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenNovel = { path ->
+                        navController.navigate(
+                            "browse/source/${LocalLibrary.IDENTITY}/novel/${Uri.encode(path)}",
+                        )
+                    },
                 )
             }
             composable(REPOSITORIES_ROUTE) {
@@ -189,6 +203,7 @@ fun AnansiApp(
                     identity = identity,
                     novelPath = novelPath,
                     onBack = { navController.popBackStack() },
+                    onRemoved = { navController.popBackStack() },
                     onOpenChapter = { chapter ->
                         navController.navigate(
                             "reader/$identity/${Uri.encode(novelPath)}/${Uri.encode(chapter.path)}",

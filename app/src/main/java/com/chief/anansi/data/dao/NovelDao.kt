@@ -31,6 +31,12 @@ data class UpdateRow(
     val newestNewUrl: String?,
 )
 
+/** One imported novel of a single source with its chapter count. */
+data class SourceNovelRow(
+    @Embedded val novel: NovelEntity,
+    val chapterCount: Int,
+)
+
 @Dao
 interface NovelDao {
 
@@ -95,6 +101,25 @@ interface NovelDao {
     @Query("SELECT * FROM novels WHERE sourceId = :sourceId AND sourceNovelId = :sourceNovelId")
     fun observeBySourceNovel(sourceId: Long, sourceNovelId: String): Flow<NovelEntity?>
 
+    /** A source's imported library novels, newest first, with chapter counts. */
+    @Query(
+        """
+        SELECT novels.*,
+               (SELECT COUNT(*) FROM chapters
+                WHERE chapters.novelId = novels.id) AS chapterCount
+        FROM novels
+        WHERE novels.sourceId = :sourceId AND novels.inLibrary = 1
+        ORDER BY novels.addedAt DESC
+        """,
+    )
+    fun observeBySource(sourceId: Long): Flow<List<SourceNovelRow>>
+
     @Query("UPDATE novels SET inLibrary = :inLibrary WHERE id = :novelId")
     suspend fun setInLibrary(novelId: Long, inLibrary: Boolean)
+
+    @Query("UPDATE novels SET coverUrl = :coverUrl WHERE id = :novelId")
+    suspend fun setCoverUrl(novelId: Long, coverUrl: String?)
+
+    @Query("DELETE FROM novels WHERE id = :novelId")
+    suspend fun deleteById(novelId: Long)
 }

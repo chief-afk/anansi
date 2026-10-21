@@ -8,6 +8,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.chief.anansi.AnansiApplication
 import com.chief.anansi.data.dao.SourceErrorDao
+import com.chief.anansi.data.repo.SourceEcosystem
 import com.chief.anansi.data.repo.SourceRegistryRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -48,9 +49,12 @@ class BrowseViewModel(
         val errorBySourceId = errors.associate {
             it.sourceId to SourceErrorDisplay(it.kind, it.reason)
         }
+        // The fixed Local pseudo-source has its own fixed entry above the
+        // list; its registered row would only duplicate that entry here.
+        val listed = sources.filter { it.ecosystem != SourceEcosystem.LOCAL.key }
         BrowseUiState(
             loading = false,
-            sources = sources.map { source ->
+            sources = listed.map { source ->
                 BrowseSourceRow(
                     identity = source.identity,
                     name = source.displayName,
@@ -63,7 +67,7 @@ class BrowseViewModel(
                     error = errorBySourceId[source.sourceId],
                 )
             },
-            repositoryCount = sources.map { it.repoUrl }.filter { it.isNotEmpty() }.distinct().size,
+            repositoryCount = listed.map { it.repoUrl }.filter { it.isNotEmpty() }.distinct().size,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BrowseUiState())
 

@@ -279,4 +279,23 @@
     <string name="appearance_seed_note">The same seven seeds as LNReader v1, re-tuned to the Material 3 baseline.</string>
     <string name="appearance_pinned_tabs_title">Pinned tabs only</string>
     <string name="appearance_pinned_tabs_body">Hide Updates and History from the bottom bar</string>
+
+    <!-- Local source (per-file SAF picking) -->
+    <string name="browse_section_local">LOCAL</string>
+    <string name="browse_local_meta">On-device files · EPUB and TXT</string>
+    <string name="screen_local">Local</string>
+    <string name="local_description">Files stay on device, always. One folder per novel; TXT and EPUB files become chapters.</string>
+    <string name="local_footer">Local novels use the same reader and audio reader as everything else; text-to-speech works offline by construction.</string>
+    <string name="local_empty_title">No imported novels yet</string>
+    <string name="local_empty_body">Import an EPUB or TXT file to read it here.</string>
+    <string name="local_import_action">Import files</string>
+    <string name="cd_local_import">Import EPUB or TXT files</string>
+    <string name="local_importing">Importing…</string>
+    <string name="local_row_meta">%1$s · imported %2$s</string>
+    <string name="local_import_more">…and %1$d more</string>
+    <plurals name="local_import_done">
+        <item quantity="one">Imported %1$d novel</item>
+        <item quantity="other">Imported %1$d novels</item>
+    </plurals>
+    <string name="details_remove">Remove</string>
 </resources>

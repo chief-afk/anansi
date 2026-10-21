@@ -12,9 +12,11 @@ import com.chief.anansi.data.entity.NovelEntity
 import com.chief.anansi.data.entity.SourceEntity
 import com.chief.anansi.data.repo.LibraryRepository
 import com.chief.anansi.data.repo.NovelCheckResult
+import com.chief.anansi.data.repo.SourceEcosystem
 import com.chief.anansi.data.repo.SourceRegistryRepository
 import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.plugin.SourceChapterItem
+import com.chief.anansi.plugin.local.LocalLibrary
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,6 +75,10 @@ data class NovelDetailsUiState(
     val refreshFailure: String? = null,
     /** The last refresh made no source call: this novel's source is disabled. */
     val refreshSkipped: Boolean = false,
+    /** The novel belongs to the fixed local library (imported files). */
+    val isLocal: Boolean = false,
+    /** A local removal finished; the screen leaves with the novel. */
+    val removed: Boolean = false,
 )
 
 /**
@@ -87,6 +93,7 @@ class NovelDetailsViewModel(
     private val sessions: SourceSessions,
     private val libraryRepository: LibraryRepository,
     private val updateRepository: UpdateRepository,
+    private val localLibrary: LocalLibrary,
     private val identity: String,
     private val novelPath: String,
 ) : ViewModel() {
@@ -120,10 +127,19 @@ class NovelDetailsViewModel(
         val display = _state.value.novel ?: return
         viewModelScope.launch {
             val rowId = _state.value.libraryRowId
-            if (rowId != null) {
-                libraryRepository.setInLibrary(rowId, !_state.value.inLibrary)
-            } else {
-                libraryRepository.addNovelWithChapters(
+            when {
+                // A local novel's removal deletes it for good: the stored
+                // directory and the row (chapters, read marks, and progress
+                // cascade), since its only way back in is re-import.
+                rowId != null && _state.value.inLibrary &&
+                    entity?.ecosystem == SourceEcosystem.LOCAL.key -> {
+                    localLibrary.removeImportedNovel(rowId)
+                    _state.update { it.copy(removed = true) }
+                }
+
+                rowId != null -> libraryRepository.setInLibrary(rowId, !_state.value.inLibrary)
+
+                else -> libraryRepository.addNovelWithChapters(
                     novel = NovelEntity(
                         sourceId = entityId,
                         sourceNovelId = novelPath,
@@ -230,6 +246,7 @@ class NovelDetailsViewModel(
                     sourceName = source.name,
                     sourceLine = sourceLine(source.name, loaded.lang, source.ecosystem),
                     coverHeaders = coverHeaders(source),
+                    isLocal = loaded.ecosystem == SourceEcosystem.LOCAL.key,
                     novel = NovelDisplay(
                         title = details.name ?: novelPath,
                         coverUrl = details.cover,
@@ -310,6 +327,7 @@ class NovelDetailsViewModel(
                         sessions = container.sourceSessions,
                         libraryRepository = container.libraryRepository,
                         updateRepository = container.updateRepository,
+                        localLibrary = container.localLibrary,
                         identity = identity,
                         novelPath = novelPath,
                     )

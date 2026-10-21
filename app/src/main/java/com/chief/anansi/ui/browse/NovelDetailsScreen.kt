@@ -71,6 +71,8 @@ fun NovelDetailsScreen(
     onBack: () -> Unit,
     onOpenChapter: (ChapterRow) -> Unit,
     modifier: Modifier = Modifier,
+    /** Runs after a local novel's removal deletes the novel for good. */
+    onRemoved: () -> Unit = {},
     viewModel: NovelDetailsViewModel = viewModel(
         key = "$identity::$novelPath",
         factory = NovelDetailsViewModel.factory(identity, novelPath),
@@ -99,6 +101,11 @@ fun NovelDetailsScreen(
             snackbarHostState.showSnackbar(refreshMessage)
             viewModel.refreshFailureShown()
         }
+    }
+    // A local removal deleted the novel and its stored files: the screen
+    // leaves with it.
+    LaunchedEffect(state.removed) {
+        if (state.removed) onRemoved()
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -339,7 +346,13 @@ private fun MetaHeader(
                         modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.details_in_library))
+                    Text(
+                        // A local novel leaves the library only by removal,
+                        // which deletes it and its stored files.
+                        stringResource(
+                            if (state.isLocal) R.string.details_remove else R.string.details_in_library,
+                        ),
+                    )
                 }
                 // The Listen entry: shelved novels only, the
                 // same condition as the reader's chapter tap, so the control
