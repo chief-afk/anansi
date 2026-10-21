@@ -9,29 +9,43 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
+import coil3.request.ImageRequest
 import kotlin.math.abs
 
 /**
  * Novel cover art with the designed fallback: a
  * seed-colored container carrying the title initials while the cover is
  * missing or still loading. All cover requests go through Coil's shared
- * image loader.
+ * image loader; [headers] carries the plugin's imageRequestInit values so
+ * sources that need them (Referer, a specific User-Agent) get them on the
+ * image request itself.
  */
 @Composable
 fun NovelCover(
     title: String,
     coverUrl: String?,
     modifier: Modifier = Modifier,
+    headers: Map<String, String> = emptyMap(),
 ) {
     if (coverUrl == null) {
         CoverPlaceholder(title = title, modifier = modifier)
     } else {
         SubcomposeAsyncImage(
-            model = coverUrl,
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(coverUrl)
+                .httpHeaders(
+                    NetworkHeaders.Builder().apply {
+                        headers.forEach { (name, value) -> set(name, value) }
+                    }.build(),
+                )
+                .build(),
             contentDescription = null,
             modifier = modifier,
             loading = {

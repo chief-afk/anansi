@@ -104,6 +104,52 @@
     <string name="backlog_statistics_title">Statistics</string>
     <string name="backlog_statistics_body">Reading time and pace</string>
 
+    <!-- Source catalog and global search -->
+    <string name="cd_search">Search</string>
+    <string name="cd_search_clear">Clear search</string>
+    <string name="cd_catalog_filter">Filters</string>
+    <string name="action_retry">Retry</string>
+    <string name="screen_search">Global search</string>
+    <string name="search_hint_all">Search all sources</string>
+    <string name="search_hint_source">Search on %1$s</string>
+    <string name="search_initial_title">Search your sources</string>
+    <string name="search_initial_body">One query runs across every enabled source; each source answers in its own group.</string>
+    <string name="search_no_sources_body">Add a repository first; search runs across the sources you have installed.</string>
+    <string name="search_group_results">%1$s · %2$d results</string>
+    <string name="search_group_failed">%1$s · error</string>
+    <string name="search_group_searching_source">%1$s · searching</string>
+    <string name="search_group_searching">Searching…</string>
+    <string name="search_no_results_body">Nothing matched on this source.</string>
+    <string name="catalog_chip_popular">Popular</string>
+    <string name="catalog_chip_latest">Latest</string>
+    <string name="catalog_load_more">Load more</string>
+    <string name="catalog_empty_title">Nothing here</string>
+    <string name="catalog_empty_body">This listing has no novels to show.</string>
+    <string name="filter_sheet_title">Filters</string>
+    <string name="filter_apply">Apply</string>
+    <string name="filter_reset">Reset</string>
+
+    <!-- Novel details and chapter sheet -->
+    <string name="details_add_library">Add to library</string>
+    <string name="details_in_library">In library</string>
+    <string name="details_chapter_count">%1$d chapters</string>
+    <string name="details_chapters_label">CHAPTERS · %1$d</string>
+    <string name="cd_details_filter">Sort and filter chapters</string>
+    <string name="cd_details_mark_read">Mark chapter read</string>
+    <string name="cd_details_mark_unread">Mark chapter unread</string>
+    <string name="details_source_missing_title">Source not installed</string>
+    <string name="details_source_missing_body">The source this novel belongs to is no longer registered.</string>
+    <string name="details_sheet_title">Sort and filter</string>
+    <string name="details_sort_label">SORT ORDER</string>
+    <string name="details_sort_source">By source</string>
+    <string name="details_sort_newest">Newest first</string>
+    <string name="details_sort_oldest">Oldest first</string>
+    <string name="details_show_label">SHOW</string>
+    <string name="details_show_all">All chapters</string>
+    <string name="details_show_unread">Unread</string>
+    <string name="details_show_read">Read</string>
+    <string name="details_downloaded">Downloaded</string>
+
     <!-- Library grid -->
     <string name="library_continue_chapter">Ch. %1$d</string>
     <string name="library_all_read">All read</string>

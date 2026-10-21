@@ -1,5 +1,6 @@
 package com.chief.anansi.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -22,7 +23,10 @@ import androidx.navigation.navArgument
 import com.chief.anansi.settings.SeedTheme
 import com.chief.anansi.settings.ThemeMode
 import com.chief.anansi.ui.browse.BrowseScreen
+import com.chief.anansi.ui.browse.CatalogScreen
+import com.chief.anansi.ui.browse.NovelDetailsScreen
 import com.chief.anansi.ui.browse.RepositoriesScreen
+import com.chief.anansi.ui.browse.SearchScreen
 import com.chief.anansi.ui.browse.SourceManageScreen
 import com.chief.anansi.ui.history.HistoryScreen
 import com.chief.anansi.ui.library.LibraryScreen
@@ -33,6 +37,9 @@ import com.chief.anansi.ui.updates.UpdatesScreen
 private const val APPEARANCE_ROUTE = "appearance"
 private const val REPOSITORIES_ROUTE = "browse/repositories"
 private const val SOURCE_MANAGE_ROUTE = "browse/source/{identity}"
+private const val CATALOG_ROUTE = "browse/source/{identity}/catalog"
+private const val SEARCH_ROUTE = "browse/search?identity={identity}"
+private const val NOVEL_ROUTE = "browse/source/{identity}/novel/{path}"
 
 @Composable
 fun AnansiApp(
@@ -88,6 +95,10 @@ fun AnansiApp(
                     onOpenSource = { identity ->
                         navController.navigate("browse/source/$identity")
                     },
+                    onOpenCatalog = { row ->
+                        navController.navigate("browse/source/${row.identity}/catalog")
+                    },
+                    onOpenSearch = { navController.navigate("browse/search") },
                 )
             }
             composable(REPOSITORIES_ROUTE) {
@@ -100,6 +111,62 @@ fun AnansiApp(
                 val identity = entry.arguments?.getString("identity").orEmpty()
                 SourceManageScreen(
                     identity = identity,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = CATALOG_ROUTE,
+                arguments = listOf(navArgument("identity") { type = NavType.StringType }),
+            ) { entry ->
+                val identity = entry.arguments?.getString("identity").orEmpty()
+                CatalogScreen(
+                    identity = identity,
+                    onBack = { navController.popBackStack() },
+                    onOpenSearch = {
+                        navController.navigate("browse/search?identity=${Uri.encode(identity)}")
+                    },
+                    onOpenNovel = { item ->
+                        navController.navigate(
+                            "browse/source/$identity/novel/${Uri.encode(item.path)}",
+                        )
+                    },
+                )
+            }
+            composable(
+                route = SEARCH_ROUTE,
+                arguments = listOf(
+                    navArgument("identity") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+            ) { entry ->
+                val scoped = entry.arguments
+                    ?.getString("identity")
+                    ?.takeIf { it.isNotEmpty() }
+                SearchScreen(
+                    scopedIdentity = scoped,
+                    onBack = { navController.popBackStack() },
+                    onOpenNovel = { sourceIdentity, novelPath ->
+                        navController.navigate(
+                            "browse/source/$sourceIdentity/novel/${Uri.encode(novelPath)}",
+                        )
+                    },
+                )
+            }
+            composable(
+                route = NOVEL_ROUTE,
+                arguments = listOf(
+                    navArgument("identity") { type = NavType.StringType },
+                    navArgument("path") { type = NavType.StringType },
+                ),
+            ) { entry ->
+                val identity = entry.arguments?.getString("identity").orEmpty()
+                val novelPath = entry.arguments?.getString("path").orEmpty()
+                NovelDetailsScreen(
+                    identity = identity,
+                    novelPath = novelPath,
                     onBack = { navController.popBackStack() },
                 )
             }

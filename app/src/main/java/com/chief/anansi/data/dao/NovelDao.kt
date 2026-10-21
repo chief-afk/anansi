@@ -49,4 +49,11 @@ interface NovelDao {
 
     @Query("SELECT * FROM novels WHERE id = :id")
     suspend fun findById(id: Long): NovelEntity?
+
+    /** The library row for a source-discovered novel, when one exists. */
+    @Query("SELECT * FROM novels WHERE sourceId = :sourceId AND sourceNovelId = :sourceNovelId")
+    fun observeBySourceNovel(sourceId: Long, sourceNovelId: String): Flow<NovelEntity?>
+
+    @Query("UPDATE novels SET inLibrary = :inLibrary WHERE id = :novelId")
+    suspend fun setInLibrary(novelId: Long, inLibrary: Boolean)
 }

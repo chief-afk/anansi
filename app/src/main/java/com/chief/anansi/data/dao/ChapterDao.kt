@@ -9,6 +9,7 @@ import androidx.room.Upsert
 import com.chief.anansi.data.entity.ChapterEntity
 import com.chief.anansi.data.entity.NovelEntity
 import com.chief.anansi.data.entity.ReadingProgressEntity
+import kotlinx.coroutines.flow.Flow
 
 /** Novel plus its chapters and, when present, its single progress row. */
 data class NovelWithProgress(
@@ -27,6 +28,9 @@ interface ChapterDao {
 
     @Query("SELECT * FROM chapters WHERE novelId = :novelId ORDER BY sortOrder")
     suspend fun findByNovel(novelId: Long): List<ChapterEntity>
+
+    @Query("SELECT * FROM chapters WHERE novelId = :novelId ORDER BY sortOrder")
+    fun observeByNovel(novelId: Long): Flow<List<ChapterEntity>>
 
     @Transaction
     @Query("SELECT * FROM novels WHERE id = :novelId")

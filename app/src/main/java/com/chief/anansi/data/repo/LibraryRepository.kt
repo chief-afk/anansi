@@ -40,4 +40,21 @@ class LibraryRepository(
     suspend fun setAllChaptersRead(novelId: Long, isRead: Boolean) {
         chapterDao.setAllChaptersRead(novelId, isRead)
     }
+
+    /** The library row for a novel discovered on a source, when it is shelved. */
+    fun observeBySourceNovel(sourceId: Long, sourceNovelId: String): Flow<NovelEntity?> =
+        novelDao.observeBySourceNovel(sourceId, sourceNovelId)
+
+    /** A shelved novel's chapter rows, in source order. */
+    fun observeChapters(novelId: Long): Flow<List<ChapterEntity>> =
+        chapterDao.observeByNovel(novelId)
+
+    /**
+     * Toggles library membership for a known row without touching its
+     * chapters or read marks; first-time shelving goes through
+     * [addNovelWithChapters].
+     */
+    suspend fun setInLibrary(novelId: Long, inLibrary: Boolean) {
+        novelDao.setInLibrary(novelId, inLibrary)
+    }
 }

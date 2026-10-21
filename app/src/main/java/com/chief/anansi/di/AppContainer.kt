@@ -12,9 +12,11 @@ import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.error.PersistentSourceErrorRegistry
 import com.chief.anansi.plugin.error.SourceErrorRegistry
 import com.chief.anansi.plugin.repo.RepoRegistrationService
+import com.chief.anansi.plugin.repo.RepoHttp
 import com.chief.anansi.plugin.runtime.FetchBridge
 import com.chief.anansi.plugin.runtime.QuickJsSourceRuntime
 import com.chief.anansi.settings.SettingsStore
+import com.chief.anansi.ui.browse.SourceSessions
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +68,16 @@ class AppContainer(context: Context) {
         errorRegistry = sourceErrorRegistry,
         sourceRegistry = sourceRegistryRepository,
     )
+
+    // Loads registered sources into live plugin adapters for the discovery
+    // screens (catalog, search, details); the dist cache keeps reloads off
+    // the network.
+    val sourceSessions = SourceSessions(
+        runtime = jsSourceRuntime,
+        errorRegistry = sourceErrorRegistry,
+        http = RepoHttp(okHttpClient),
+    )
+
     val libraryRepository = LibraryRepository(database)
     val historyRepository = HistoryRepository(database)
 

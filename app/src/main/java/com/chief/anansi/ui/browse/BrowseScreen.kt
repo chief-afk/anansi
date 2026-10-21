@@ -48,19 +48,32 @@ import com.chief.anansi.ui.components.ScreenTitle
  * across all repos and ecosystems, pinned first, with the ecosystem and
  * API generation footer per source, the Repositories chip, and the
  * no-repositories empty state. Tapping a source opens its
- * management surface; catalog tap-through arrives in a later phase.
+ * catalog;
+ * the global search lens rides on the appbar.
  */
 @Composable
 fun BrowseScreen(
     onOpenRepositories: () -> Unit,
     onOpenSource: (String) -> Unit,
+    onOpenCatalog: (BrowseSourceRow) -> Unit,
+    onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: BrowseViewModel = viewModel(factory = BrowseViewModel.Factory),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Column(modifier = modifier.fillMaxSize()) {
-        ScreenTitle(stringResource(R.string.tab_browse))
+        ScreenTitle(
+            stringResource(R.string.tab_browse),
+            actions = {
+                IconButton(onClick = onOpenSearch) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_search),
+                        contentDescription = stringResource(R.string.cd_search),
+                    )
+                }
+            },
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -106,6 +119,7 @@ fun BrowseScreen(
 
             else -> SourceList(
                 state = state,
+                onOpenCatalog = onOpenCatalog,
                 onOpenSource = onOpenSource,
                 onTogglePin = viewModel::togglePin,
                 onSetEnabled = viewModel::setEnabled,
@@ -117,6 +131,7 @@ fun BrowseScreen(
 @Composable
 private fun SourceList(
     state: BrowseUiState,
+    onOpenCatalog: (BrowseSourceRow) -> Unit,
     onOpenSource: (String) -> Unit,
     onTogglePin: (BrowseSourceRow) -> Unit,
     onSetEnabled: (BrowseSourceRow, Boolean) -> Unit,
@@ -132,14 +147,14 @@ private fun SourceList(
                 SectionHeader(stringResource(R.string.browse_section_pinned))
             }
             items(pinned, key = { "pinned-${it.identity}" }) { row ->
-                SourceRow(row, onOpenSource, onTogglePin, onSetEnabled)
+                SourceRow(row, onOpenCatalog, onOpenSource, onTogglePin, onSetEnabled)
             }
         }
         item(key = "header-all") {
             SectionHeader(stringResource(R.string.browse_section_all, all.size))
         }
         items(all, key = { it.identity }) { row ->
-            SourceRow(row, onOpenSource, onTogglePin, onSetEnabled)
+            SourceRow(row, onOpenCatalog, onOpenSource, onTogglePin, onSetEnabled)
         }
         item(key = "footer") {
             Text(
@@ -176,6 +191,7 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun SourceRow(
     row: BrowseSourceRow,
+    onOpenCatalog: (BrowseSourceRow) -> Unit,
     onOpenSource: (String) -> Unit,
     onTogglePin: (BrowseSourceRow) -> Unit,
     onSetEnabled: (BrowseSourceRow, Boolean) -> Unit,
@@ -185,7 +201,12 @@ private fun SourceRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onOpenSource(row.identity) }
+            .clickable {
+                // Enabled sources open their catalog; a disabled source has
+                // no catalog (excluded from Browse), so its row lands on the
+                // management surface where the enable switch lives.
+                if (row.enabled) onOpenCatalog(row) else onOpenSource(row.identity)
+            }
             .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
     ) {
         NovelCover(
