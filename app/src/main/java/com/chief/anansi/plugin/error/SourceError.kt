@@ -23,6 +23,13 @@ sealed class SourceError(val reason: String) {
 
     /** The source uses a feature this host deliberately does not provide. */
     class UnsupportedFeature(reason: String) : SourceError(reason)
+
+    /**
+     * The source's plugin is not installed: the row is a v1 backup import's
+     * needs-source placeholder, and the reason names the plugin id a
+     * repository must carry to link the novel.
+     */
+    class SourceMissing(reason: String) : SourceError(reason)
 }
 
 /**

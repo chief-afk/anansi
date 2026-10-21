@@ -7,6 +7,7 @@ import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import com.chief.anansi.audio.TtsController
 import com.chief.anansi.audio.TtsSettingsStore
 import com.chief.anansi.data.AnansiDatabase
+import com.chief.anansi.data.backup.BackupImportRepository
 import com.chief.anansi.data.repo.HistoryRepository
 import com.chief.anansi.data.repo.LibraryRepository
 import com.chief.anansi.data.repo.SourceRegistryRepository
@@ -121,6 +122,13 @@ class AppContainer(context: Context) {
 
     val libraryRepository = LibraryRepository(database)
     val historyRepository = HistoryRepository(database)
+
+    // The lnreader v1 backup restore: parse-then-write, offline,
+    // with needs-source landing for unregistered plugin ids.
+    val backupImportRepository = BackupImportRepository(
+        database = database,
+        sourceRegistry = sourceRegistryRepository,
+    )
 
     // Manual update checks: per-novel and check-all over library novels,
     // each through the novel's own loaded source adapter.

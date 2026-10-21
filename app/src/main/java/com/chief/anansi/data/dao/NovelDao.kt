@@ -101,6 +101,10 @@ interface NovelDao {
     @Query("SELECT * FROM novels WHERE sourceId = :sourceId AND sourceNovelId = :sourceNovelId")
     fun observeBySourceNovel(sourceId: Long, sourceNovelId: String): Flow<NovelEntity?>
 
+    /** One-shot [observeBySourceNovel] for non-UI callers (backup import). */
+    @Query("SELECT * FROM novels WHERE sourceId = :sourceId AND sourceNovelId = :sourceNovelId")
+    suspend fun findBySourceNovel(sourceId: Long, sourceNovelId: String): NovelEntity?
+
     /** A source's imported library novels, newest first, with chapter counts. */
     @Query(
         """

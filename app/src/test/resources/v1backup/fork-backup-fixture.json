@@ -1,0 +1,87 @@
+{
+  "format": "lnreader-fork-backup",
+  "version": 1,
+  "exportedAt": "2026-01-02T03:04:05.678Z",
+  "novels": [
+    {
+      "novelId": 11,
+      "novelUrl": "synthetic-peak-of-the-void/",
+      "sourceUrl": "https://voidlibrary.example/synthetic-peak-of-the-void",
+      "sourceId": 731,
+      "source": "VoidLibrary",
+      "novelName": "Peak of the Void",
+      "novelCover": "https://voidlibrary.example/covers/peak-of-the-void.webp",
+      "novelSummary": "A lone cultivator climbs a mountain that erases names.",
+      "author": "Invented Author",
+      "artist": null,
+      "status": "Ongoing",
+      "genre": "Action, Fantasy",
+      "followed": 1,
+      "unread": 0,
+      "categoryIds": "[3]",
+      "someFutureField": true
+    },
+    {
+      "novelId": 12,
+      "novelUrl": "synthetic-tide-letters/",
+      "sourceUrl": "https://tidepress.example/synthetic-tide-letters",
+      "sourceId": 742,
+      "source": "TidePress",
+      "novelName": "Tide Letters",
+      "followed": 1,
+      "unread": 1
+    }
+  ],
+  "categories": [
+    { "id": 3, "name": "Reading now", "sort": 1 },
+    { "id": 4, "name": "Someday", "sort": null }
+  ],
+  "chapters": [
+    {
+      "chapterId": 101,
+      "chapterUrl": "void-chapter-1/",
+      "novelId": 11,
+      "chapterName": "The Empty Gate",
+      "releaseDate": "2025-01-01",
+      "bookmark": 0,
+      "read": 1,
+      "downloaded": 0
+    },
+    {
+      "chapterId": 102,
+      "chapterUrl": "void-chapter-2/",
+      "novelId": 11,
+      "chapterName": "Gray Stone",
+      "releaseDate": "2025-01-02",
+      "bookmark": 1,
+      "read": 0,
+      "downloaded": 0
+    },
+    {
+      "chapterId": 103,
+      "chapterUrl": "#F4F4F4",
+      "novelId": 11,
+      "chapterName": "Light gray separator",
+      "releaseDate": "",
+      "bookmark": 0,
+      "read": 0,
+      "downloaded": 0
+    },
+    {
+      "chapterId": 104,
+      "chapterUrl": "tide-chapter-1/",
+      "novelId": 12,
+      "chapterName": "Salt and Ink",
+      "bookmark": 0,
+      "read": 0,
+      "downloaded": 0
+    }
+  ],
+  "history": [
+    {
+      "historyNovelId": 11,
+      "historyChapterId": 101,
+      "historyTimeRead": "2026-01-03 21:15:00"
+    }
+  ]
+}

@@ -39,6 +39,7 @@ import com.chief.anansi.ui.components.ScreenTitle
 fun MoreScreen(
     onOpenAppearance: () -> Unit,
     onOpenAudio: () -> Unit,
+    onOpenBackup: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -91,6 +92,11 @@ fun MoreScreen(
             iconRes = R.drawable.ic_headphones,
             title = stringResource(R.string.screen_audio_reader),
             onClick = onOpenAudio,
+        )
+        SettingsRow(
+            iconRes = R.drawable.ic_folder,
+            title = stringResource(R.string.screen_backup),
+            onClick = onOpenBackup,
         )
         SectionLabel(stringResource(R.string.more_section_backlog))
         BacklogRow(

@@ -1,0 +1,19 @@
+[
+  {
+    "novelId": 21,
+    "novelUrl": "synthetic-lantern-harbor/",
+    "sourceUrl": "https://harborpress.example/synthetic-lantern-harbor",
+    "sourceId": 755,
+    "source": "HarborPress",
+    "novelName": "Lantern Harbor",
+    "novelCover": "https://harborpress.example/covers/lantern-harbor.webp",
+    "novelSummary": "A lamplighter keeps the last harbor lit through a long winter.",
+    "author": "Another Inventor",
+    "artist": null,
+    "status": "Completed",
+    "genre": "Slice of Life, Fantasy",
+    "followed": 1,
+    "unread": 0,
+    "categoryIds": "[1]"
+  }
+]

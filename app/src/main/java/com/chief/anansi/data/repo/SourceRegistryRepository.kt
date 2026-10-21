@@ -28,13 +28,33 @@ class SourceRegistryRepository(
         sourceId: String,
         displayName: String,
     ): SourceEntity {
-        val identity = "${ecosystem.key}_$sourceId"
+        val identity = ecosystem.identity(sourceId)
         sourceDao.findByIdentity(identity)?.let { return it }
         return database.withTransaction {
             // Re-check inside the transaction: registration is serialized on
             // the single write connection, so the minted id is unique.
             sourceDao.findByIdentity(identity)?.let { return@withTransaction it }
             mintAndInsert(ecosystem, sourceId, identity, displayName)
+        }
+    }
+
+    /**
+     * Registers the repo-less placeholder row a v1 backup novel needs when
+     * its plugin is not installed: disabled, no repository, no dist. The
+     * novel's source foreign key is valid from the moment it lands, and a
+     * later repository carrying the same plugin id claims the row through
+     * the upsert path, which re-links the novel automatically.
+     */
+    suspend fun registerNeedsSource(
+        ecosystem: SourceEcosystem,
+        sourceId: String,
+        displayName: String,
+    ): SourceEntity {
+        val identity = ecosystem.identity(sourceId)
+        sourceDao.findByIdentity(identity)?.let { return it }
+        return database.withTransaction {
+            sourceDao.findByIdentity(identity)?.let { return@withTransaction it }
+            mintAndInsert(ecosystem, sourceId, identity, displayName, enabled = false)
         }
     }
 
@@ -71,7 +91,7 @@ class SourceRegistryRepository(
         database.withTransaction {
             for (source in sources) {
                 val ecosystem = ecosystemByKey(source.ecosystem)
-                val identity = "${ecosystem.key}_${source.sourceId}"
+                val identity = ecosystem.identity(source.sourceId)
                 val existing = sourceDao.findByIdentity(identity)
                 if (existing == null) {
                     mintAndInsert(
@@ -86,6 +106,23 @@ class SourceRegistryRepository(
                         iconUrl = source.iconUrl,
                     )
                     created++
+                } else if (existing.repoUrl.isEmpty()) {
+                    // A repo-less placeholder row (a v1 backup import's
+                    // needs-source source): the arriving repository claims
+                    // it in place, which re-links the novels already stored
+                    // under its identity.
+                    sourceDao.update(
+                        existing.copy(
+                            displayName = source.displayName,
+                            generation = source.generation,
+                            repoUrl = repoUrl,
+                            distUrl = source.distUrl,
+                            lang = source.lang,
+                            iconUrl = source.iconUrl,
+                            enabled = true,
+                        ),
+                    )
+                    updated++
                 } else if (existing.repoUrl != repoUrl) {
                     conflicts += source.sourceId
                 } else {
@@ -151,6 +188,7 @@ class SourceRegistryRepository(
         identity: String,
         displayName: String,
         generation: String = "",
+        enabled: Boolean = true,
         repoUrl: String = "",
         distUrl: String = "",
         lang: String = "",
@@ -170,6 +208,7 @@ class SourceRegistryRepository(
             numericId = nextNumericId,
             displayName = displayName,
             generation = generation,
+            enabled = enabled,
             repoUrl = repoUrl,
             distUrl = distUrl,
             lang = lang,

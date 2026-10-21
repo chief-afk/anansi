@@ -298,4 +298,29 @@
         <item quantity="other">Imported %1$d novels</item>
     </plurals>
     <string name="details_remove">Remove</string>
+
+    <!-- Backup and migrate (lnreader_backup_*.json is a permanent import surface) -->
+    <string name="screen_backup">Backup and migrate</string>
+    <string name="action_ok">OK</string>
+    <string name="action_back">Back</string>
+    <string name="backup_restore_title">Restore from LNReader</string>
+    <string name="backup_restore_body">Reads lnreader_backup_*.json (v1 and upstream format)</string>
+    <string name="backup_privacy_note">The file is read on device and never uploaded. Import is fully offline; sources re-link by plugin id.</string>
+    <string name="backup_importing">Reading backup…</string>
+    <string name="backup_export_title">Backup export</string>
+    <string name="backup_export_body">Export and automatic local backup arrive in a future release</string>
+    <string name="backup_done_title">Import complete</string>
+    <string name="backup_done_headline">%1$d novels restored from %2$s.</string>
+    <string name="backup_done_chapters">%1$d chapters</string>
+    <string name="backup_done_read_marks">%1$d read marks</string>
+    <string name="backup_done_history">%1$d history</string>
+    <string name="backup_done_needs_source">%1$d novels could not be matched to an installed source and are saved as “needs source”</string>
+    <string name="backup_done_positions_note">v1 backups store no reader position, so restored history starts each novel at its chapter’s beginning.</string>
+    <string name="backup_review_unmatched">Review unmatched</string>
+    <string name="backup_unmatched_title">Needs source</string>
+    <string name="backup_unmatched_note">These novels keep their metadata and wait in the library; opening one asks for the source that serves it.</string>
+    <string name="backup_unmatched_row">%1$s · %2$s (plugin id %3$d)</string>
+    <string name="backup_skipped_categories">%1$d categories skipped (categories are not supported yet)</string>
+    <string name="backup_skipped_bookmarks">%1$d bookmarked chapters skipped (bookmarks arrive in a future release)</string>
+    <string name="backup_failed_title">Import failed</string>
 </resources>

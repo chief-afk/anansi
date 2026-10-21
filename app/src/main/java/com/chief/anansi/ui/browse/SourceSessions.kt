@@ -4,7 +4,9 @@ import com.chief.anansi.data.entity.SourceEntity
 import com.chief.anansi.data.repo.SourceEcosystem
 import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.Source
+import com.chief.anansi.plugin.error.SourceError
 import com.chief.anansi.plugin.error.SourceErrorRegistry
+import com.chief.anansi.plugin.error.SourcePluginException
 import com.chief.anansi.plugin.lnreader.v1era.V1EraPluginLoader
 import com.chief.anansi.plugin.lnreader.v3.DEFAULT_IMAGE_USER_AGENT
 import com.chief.anansi.plugin.lnreader.v3.V3ManifestItem
@@ -51,6 +53,20 @@ class SourceSessions(
                 name = entity.displayName,
                 lang = entity.lang,
             )
+        }
+        // A repo-less lnreader row is a v1 backup import's needs-source
+        // placeholder: its plugin is not installed, so every source call
+        // reports the missing plugin instead of a confusing empty-dist
+        // fetch failure. Adding a repository carrying the plugin id claims
+        // the row, and this branch stops applying.
+        if (entity.ecosystem == SourceEcosystem.LNREADER.key && entity.distUrl.isEmpty()) {
+            val error = SourceError.SourceMissing(
+                "This novel's source is not installed: it came from a v1 backup with " +
+                    "plugin id \"${entity.sourceId}\" (${entity.displayName}). Add a repository " +
+                    "carrying plugin id \"${entity.sourceId}\" to link it",
+            )
+            errorRegistry.report(entity.sourceId, error)
+            throw SourcePluginException(error)
         }
         if (entity.ecosystem == SourceEcosystem.OPDS.key) {
             require(entity.distUrl.isNotEmpty()) {
