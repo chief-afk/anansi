@@ -10,8 +10,8 @@ import com.dokar.quickjs.QuickJsException
 import com.dokar.quickjs.binding.asyncFunction
 import com.dokar.quickjs.binding.function
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
@@ -49,11 +49,14 @@ class QuickJsSourceRuntime(
     private val loaded = ConcurrentHashMap<String, QuickJsPlugin>()
 
     /**
-     * Call completions awaiting their engine evaluation; the
-     * `__anansiCallResult` binding hands each evaluation's envelope back in
-     * arrival order (the engine serializes binding invocations).
+     * Call completions keyed by the call id each evaluation was issued
+     * with; the `__anansiCallResult` binding completes only the entry the
+     * envelope's id names, so concurrent callers can never receive each
+     * other's envelopes.
      */
-    private val pendingCallResults = ConcurrentLinkedQueue<CompletableDeferred<String>>()
+    private val pendingCallResults = ConcurrentHashMap<Long, CompletableDeferred<String>>()
+
+    private val nextCallId = AtomicLong(0L)
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -118,7 +121,10 @@ class QuickJsSourceRuntime(
             fetchBridge.execute(args.getOrNull(0) as? String ?: "{}")
         }
         quickJs.asyncFunction<Any?>("__anansiCallResult") { args ->
-            pendingCallResults.poll()?.complete(args.getOrNull(0) as? String ?: "{}")
+            val callId = (args.getOrNull(0) as? Number)?.toLong()
+            if (callId != null) {
+                pendingCallResults.remove(callId)?.complete(args.getOrNull(1) as? String ?: "{}")
+            }
             null
         }
     }
@@ -177,12 +183,13 @@ class QuickJsSourceRuntime(
             if (!argsJson.trimStart().startsWith("[")) {
                 throw JsPluginCallException("Plugin call arguments must be a JSON array")
             }
+            val callId = nextCallId.getAndIncrement()
             val completion = CompletableDeferred<String>()
-            pendingCallResults.add(completion)
+            pendingCallResults[callId] = completion
             try {
                 evaluate(
-                    "__anansiCallPluginAsync(${literal(pluginId)}, ${literal(method)}, ${literal(argsJson)})" +
-                        ".then(function (envelopeJson) { __anansiCallResult(envelopeJson); })",
+                    "__anansiCallPluginAsync(${callId}, ${literal(pluginId)}, ${literal(method)}, ${literal(argsJson)})" +
+                        ".then(function (envelopeJson) { __anansiCallResult(${callId}, envelopeJson); })",
                 )
                 val envelopeJson = withTimeout(evaluationTimeoutMillis + CALL_COMPLETION_GRACE_MILLIS) {
                     completion.await()
@@ -191,7 +198,7 @@ class QuickJsSourceRuntime(
             } catch (e: QuickJsException) {
                 throw asCallFailure(e)
             } finally {
-                pendingCallResults.remove(completion)
+                pendingCallResults.remove(callId)
             }
         }
 

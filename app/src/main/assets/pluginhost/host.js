@@ -778,17 +778,20 @@
   };
 
   // Call completion travels through __anansiCallResult because engine
-  // evaluations capture plain values, not settled promises. The envelope
-  // keeps the two failure classes distinguishable at the Kotlin boundary.
-  global.__anansiCallPluginAsync = function (pluginId, method, argsJson) {
+  // evaluations capture plain values, not settled promises. The call id
+  // rides in the envelope and in the result callback, so each envelope is
+  // routed to its own caller and concurrent calls cannot receive each
+  // other's results. The envelope keeps the two failure classes
+  // distinguishable at the Kotlin boundary.
+  global.__anansiCallPluginAsync = function (callId, pluginId, method, argsJson) {
     return global
       .__anansiCallPlugin(pluginId, method, argsJson)
       .then(function (resultJson) {
-        return JSON.stringify({ ok: resultJson });
+        return JSON.stringify({ id: callId, ok: resultJson });
       })
       .catch(function (e) {
         var message = e && e.message ? e.message : String(e);
-        return JSON.stringify({ failed: message });
+        return JSON.stringify({ id: callId, failed: message });
       });
   };
 
