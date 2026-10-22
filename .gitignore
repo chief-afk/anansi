@@ -13,6 +13,9 @@ Thumbs.db
 build/
 
 # Android Studio
+.idea/
+*.iml
+captures/
 local.properties
 
 # Kotlin

@@ -18,9 +18,16 @@ Supported source ecosystems in v0.1.0:
 Incompatible plugins and catalogs fail loudly with a visible reason; they are
 never silently skipped or silently disabled.
 
+## Get Anansi
+
+APKs are published on the GitHub Releases page. Anansi requires Android 8.0
+or newer. There are no app-store distributions and there is no account or
+sign-in; add your own content sources after installing.
+
 ## Posture
 
-- MIT licensed, non-commercial forever.
+- MIT licensed. Non-commercial by intent: this project will never monetize,
+  and the MIT license puts no restrictions on downstream use.
 - No ads, no analytics, no tracking, no crash-reporting SDKs, no accounts.
 - Ships zero sources and zero default repositories. Content sources come from
   user-added repository URLs only. Anansi never ships or operates a curated
@@ -38,35 +45,8 @@ never silently skipped or silently disabled.
 - LNReader plugin API compatibility (v3 line first, v1-era adapter second):
   incompatible plugins fail loudly with a visible reason, never silently.
 
-## Building
+## Contributing
 
-Requirements: Android Studio or the Android SDK (compileSdk 37) plus JDK 17.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for build requirements, the unit and
+lint checks, release signing, and contribution rules.
 
-- Command line: `./gradlew assembleDebug` builds the debug APK under
-  `app/build/outputs/apk/debug/`, `./gradlew testDebugUnitTest` runs the
-  unit suite, `./gradlew lint` runs Android lint, `./gradlew assembleRelease`
-  builds the release APK.
-- Android Studio: open the repository root and run the `app` configuration.
-
-## Release signing
-
-Release signing material is never committed to this repository. The release
-build type signs only when all four keys below are present. Each key resolves
-from `local.properties` first and falls back to its matching environment
-variable when absent or blank:
-
-1. `local.properties` keys (the file is gitignored; `storeFile` resolves
-   relative to the repository root):
-   - `anansi.release.storeFile`
-   - `anansi.release.storePassword`
-   - `anansi.release.keyAlias`
-   - `anansi.release.keyPassword`
-2. Environment variables:
-   - `ANANSI_RELEASE_STORE_FILE`
-   - `ANANSI_RELEASE_STORE_PASSWORD`
-   - `ANANSI_RELEASE_KEY_ALIAS`
-   - `ANANSI_RELEASE_KEY_PASSWORD`
-
-When no signing material is present the release build still succeeds and
-produces an unsigned APK, so secret-free machines can always run the release
-check. Release minification stays off in v0.1.0 by decision.
