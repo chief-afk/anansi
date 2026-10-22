@@ -1,6 +1,9 @@
 # local planning scratch
 _docs/
 
+# local agent instruction files
+CLAUDE.md
+
 # OS junk
 Thumbs.db
 .DS_Store
