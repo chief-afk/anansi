@@ -70,4 +70,3 @@ variable when absent or blank:
 When no signing material is present the release build still succeeds and
 produces an unsigned APK, so secret-free machines can always run the release
 check. Release minification stays off in v0.1.0 by decision.
-
