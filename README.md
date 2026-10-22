@@ -1,8 +1,12 @@
 # Anansi
 
-A free, open-source, non-commercial Android reader for web novels. Anansi the
-spider owns all the stories; this app aims to do the same: one library, many
-source ecosystems behind a single internal source interface.
+A free, open-source, non-commercial Android reader for web novels.
+
+Anansi the Spider is the legendary West African trickster god, known for
+spinning intricate webs of words, clever deceptions, and tales; in the old
+stories he becomes the keeper of all stories. This app takes the name for the
+same reason: one library, many source ecosystems, behind a single internal
+source interface.
 
 Supported source ecosystems in v0.1.0:
 
