@@ -400,7 +400,7 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
             ?: return abortQueue()
         novel = loadedNovel
         val shelf = libraryRepository.novelWithProgress(loadedNovel.id) ?: return abortQueue()
-        // The @Relation list carries no ORDER BY the
+        // The @Relation list carries no ORDER BY; the
         // queue must sort by source order itself.
         chapters = shelf.chapters.sortedBy { it.sortOrder }
         if (chapters.isEmpty()) return abortQueue()
