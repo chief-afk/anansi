@@ -1,4 +1,26 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+// Release signing material is never committed (repo rule). The release build
+// signs only when all four anansi.release.* local.properties keys (or their
+// ANANSI_RELEASE_* environment fallbacks) are present; storeFile resolves
+// relative to the repo root. Without material the release build degrades to
+// an unsigned APK so secret-free machines can still run the release check.
+val releaseLocalProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun releaseSetting(name: String, envVar: String): String? =
+    releaseLocalProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(envVar)?.takeIf { it.isNotBlank() }
+
+val releaseStoreFilePath = releaseSetting("anansi.release.storeFile", "ANANSI_RELEASE_STORE_FILE")
+val releaseStorePassword = releaseSetting("anansi.release.storePassword", "ANANSI_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = releaseSetting("anansi.release.keyAlias", "ANANSI_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseSetting("anansi.release.keyPassword", "ANANSI_RELEASE_KEY_PASSWORD")
+val releaseSigningComplete = releaseStoreFilePath != null &&
+    releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
 
 plugins {
     alias(libs.plugins.android.application)
@@ -18,12 +40,29 @@ android {
         minSdk = 26
         targetSdk = 37
         versionCode = 1
-        versionName = "0.1.0-alpha"
+        versionName = "0.1.0"
+    }
+
+    signingConfigs {
+        if (releaseSigningComplete) {
+            create("release") {
+                storeFile = rootProject.file(releaseStoreFilePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
     }
 
     buildTypes {
         release {
+            // Minification stays off for v0.1.0: the QuickJS JNI surface and
+            // the plugin serialization DTOs are exactly what shrinking breaks,
+            // and the APK-size win at this app size is marginal.
             isMinifyEnabled = false
+            if (releaseSigningComplete) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
