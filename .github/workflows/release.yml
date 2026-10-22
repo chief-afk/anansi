@@ -1,0 +1,77 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+
+      - name: Decode release keystore
+        env:
+          ANANSI_RELEASE_KEYSTORE_BASE64: ${{ secrets.ANANSI_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p keystore
+          echo "$ANANSI_RELEASE_KEYSTORE_BASE64" | base64 --decode > keystore/anansi-release.jks
+
+      - name: Check the tag matches versionName
+        if: github.ref_type == 'tag'
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          if [ "$tag" != "$version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match versionName $version" >&2
+            exit 1
+          fi
+
+      - name: Build signed release
+        run: ./gradlew assembleRelease
+        env:
+          ANANSI_RELEASE_STORE_FILE: keystore/anansi-release.jks
+          ANANSI_RELEASE_STORE_PASSWORD: ${{ secrets.ANANSI_RELEASE_STORE_PASSWORD }}
+          ANANSI_RELEASE_KEY_ALIAS: ${{ secrets.ANANSI_RELEASE_KEY_ALIAS }}
+          ANANSI_RELEASE_KEY_PASSWORD: ${{ secrets.ANANSI_RELEASE_KEY_PASSWORD }}
+
+      - name: Resolve release version
+        run: |
+          version=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub release with the signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          apk="app/build/outputs/apk/release/app-release.apk"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            tag="$GITHUB_REF_NAME"
+            gh release create "$tag" "$apk" \
+              --title "Anansi $VERSION" \
+              --generate-notes \
+            || gh release upload "$tag" "$apk" --clobber
+          else
+            gh release create "v$VERSION" "$apk" \
+              --target "$GITHUB_SHA" \
+              --title "Anansi $VERSION" \
+              --generate-notes \
+            || gh release upload "v$VERSION" "$apk" --clobber
+          fi

@@ -10,8 +10,12 @@ Requirements: Android Studio or the Android SDK (compileSdk 37) plus JDK 17.
   builds the release APK.
 - Android Studio: open the repository root and run the `app` configuration.
 
-There is no CI yet, so please run `./gradlew testDebugUnitTest` and
-`./gradlew lint` before opening a pull request.
+CI runs `./gradlew assembleDebug testDebugUnitTest lint` on every push to
+`main` and on every pull request (`.github/workflows/checks.yml`); please run
+the same checks before pushing. Releases are cut by pushing a `v<version>`
+tag: `.github/workflows/release.yml` builds and publishes a signed APK to the
+GitHub Release automatically (it can also be run by hand from the Actions
+tab).
 
 Regenerating the committed plugin-host vendor bundle
 (`app/src/main/assets/pluginhost/vendor.js`) is only needed when bumping its
