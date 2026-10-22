@@ -24,6 +24,23 @@ APKs are published on the GitHub Releases page. Anansi requires Android 8.0
 or newer. There are no app-store distributions and there is no account or
 sign-in; add your own content sources after installing.
 
+## Adding sources
+
+Anansi ships no sources. Add a plugin repository once and everything in it
+becomes browsable. The main community repository is the LNReader project's
+plugin index:
+
+```
+https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json
+```
+
+Copy that URL, then in Anansi: **Browse -> Add repository**, paste, and
+confirm. About 300 sources register in one go; a few entries fail loudly
+with visible reasons, which is expected. Pick a source, open a novel, and
+add it to your library to start reading. The repository is maintained by the
+LNReader project, not by Anansi; other community repositories can be added
+the same way.
+
 ## Posture
 
 - MIT licensed. Non-commercial by intent: this project will never monetize,
