@@ -397,9 +397,13 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         }
         source = loadedSource
         // The queue's rows are created lazily, so Listen works before the
-        // novel is ever shelved; unknown sources still abort.
-        val loadedNovel = libraryRepository.ensureSourceNovelRows(identity, novelPath)
-            ?: return abortQueue()
+        // novel is ever shelved; unknown sources still abort and a fetch
+        // failure aborts instead of crashing the service.
+        val loadedNovel = try {
+            libraryRepository.ensureSourceNovelRows(identity, novelPath)
+        } catch (_: Exception) {
+            return abortQueue()
+        } ?: return abortQueue()
         novel = loadedNovel
         val shelf = libraryRepository.novelWithProgress(loadedNovel.id) ?: return abortQueue()
         // The @Relation list carries no ORDER BY; the
