@@ -69,6 +69,11 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
     private lateinit var libraryRepository: LibraryRepository
     private lateinit var historyRepository: HistoryRepository
     private lateinit var textCache: ChapterTextCache
+    // Progress writes launch here, not on serviceScope: the definitive write
+    // races stopSelf/onDestroy, whose serviceScope.cancel() would kill the
+    // Room commit (same teardown hazard ReaderViewModel.persistProgress
+    // documents for viewModelScope).
+    private lateinit var appScope: CoroutineScope
 
     private var player: TtsQueuePlayer? = null
     private var session: MediaSession? = null
@@ -181,6 +186,7 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         libraryRepository = container.libraryRepository
         historyRepository = container.historyRepository
         textCache = container.chapterTextCache
+        appScope = container.appScope
         controller.attach(this)
 
         createNotificationChannel()
@@ -694,7 +700,7 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         val currentNovel = novel ?: return
         val chapter = chapters.getOrNull(chapterIndex) ?: return
         lastProgressWriteAt = now
-        serviceScope.launch {
+        appScope.launch {
             historyRepository.upsertProgress(
                 ReadingProgressEntity(
                     novelId = currentNovel.id,

@@ -143,28 +143,44 @@ class SourceRegistryRepository(
     }
 
     /**
-     * Removes this repository's registered sources whose plugin id is absent
-     * from [keepSourceIds]; returns the removed plugin ids.
+     * Converts this repository's registered sources whose plugin id is absent
+     * from [keepSourceIds] to the needs-source placeholder state; returns the
+     * converted plugin ids. Their novels stay in the library, still attached
+     * to the repo-less identity, and a later repository carrying the plugin
+     * id re-links them through the upsert claim path.
      */
     suspend fun pruneRepoSources(
         repoUrl: String,
         keepSourceIds: Set<String>,
     ): List<String> = database.withTransaction {
-        val stale = sourceDao.findByRepoUrl(repoUrl).filter { it.sourceId !in keepSourceIds }
-        stale.forEach { sourceDao.delete(it) }
+        val stale = staleRepoSources(sourceDao.findByRepoUrl(repoUrl), keepSourceIds)
+        stale.forEach { sourceDao.update(needsSourcePlaceholder(it)) }
         stale.map { it.sourceId }
     }
 
-    /** Removes every source registered from [repoUrl]; returns their plugin ids. */
+    /**
+     * Converts every source registered from [repoUrl] to the needs-source
+     * placeholder state; returns their plugin ids. No novel row is deleted:
+     * they stay shelved under the repo-less identities.
+     */
     suspend fun removeRepo(repoUrl: String): List<String> = database.withTransaction {
         val rows = sourceDao.findByRepoUrl(repoUrl)
-        rows.forEach { sourceDao.delete(it) }
+        rows.forEach { sourceDao.update(needsSourcePlaceholder(it)) }
         rows.map { it.sourceId }
     }
 
+    /** Converts one source to the needs-source placeholder state; its novels stay. */
     suspend fun removeSource(identity: String) {
-        sourceDao.findByIdentity(identity)?.let { sourceDao.delete(it) }
+        sourceDao.findByIdentity(identity)?.let { sourceDao.update(needsSourcePlaceholder(it)) }
     }
+
+    /** Novels shelved under the sources registered from [repoUrl]. */
+    suspend fun novelCountForRepo(repoUrl: String): Int =
+        sourceDao.countNovelsByRepoUrl(repoUrl)
+
+    /** Novels shelved under the one source row [identity] names. */
+    suspend fun novelCountForIdentity(identity: String): Int =
+        sourceDao.countNovelsByIdentity(identity)
 
     suspend fun setPinned(identity: String, pinned: Boolean) {
         sourceDao.setPinned(identity, pinned)
@@ -222,3 +238,26 @@ class SourceRegistryRepository(
         SourceEcosystem.entries.firstOrNull { it.key == key }
             ?: throw IllegalArgumentException("Unknown source ecosystem \"$key\"")
 }
+
+/**
+ * The repo-less disabled state [registerNeedsSource] mints, applied to an
+ * existing row in place: conversion instead of deletion, because deleting a
+ * source row CASCADE-deletes every novel (with chapters and progress)
+ * shelved under it, and SQLite foreign keys are immediate so a placeholder
+ * cannot be minted after the original is gone. Identity and numericId
+ * survive, so the upsert claim path re-links the novels untouched.
+ */
+internal fun needsSourcePlaceholder(row: SourceEntity): SourceEntity = row.copy(
+    generation = "",
+    enabled = false,
+    repoUrl = "",
+    distUrl = "",
+    lang = "",
+    iconUrl = "",
+)
+
+/** The rows of a repo whose plugin id the manifest no longer lists. */
+internal fun staleRepoSources(
+    rows: List<SourceEntity>,
+    keepSourceIds: Set<String>,
+): List<SourceEntity> = rows.filter { it.sourceId !in keepSourceIds }

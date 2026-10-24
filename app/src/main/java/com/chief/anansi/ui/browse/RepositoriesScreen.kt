@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,10 @@ fun RepositoriesScreen(
     val catalogAdd by viewModel.catalogAdd.collectAsStateWithLifecycle()
     var url by remember { mutableStateOf("") }
     var removeCandidate by remember { mutableStateOf<String?>(null) }
+    var removeNovelCount by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(removeCandidate) {
+        removeNovelCount = removeCandidate?.let { viewModel.affectedNovelCount(it) }
+    }
 
     Column(
         modifier = modifier
@@ -133,10 +138,23 @@ fun RepositoriesScreen(
 
     removeCandidate?.let { repoUrl ->
         val count = repos.firstOrNull { it.repoUrl == repoUrl }?.sourceCount ?: 0
+        val novelCount = removeNovelCount
         AlertDialog(
             onDismissRequest = { removeCandidate = null },
             title = { Text(stringResource(R.string.repo_remove_confirm_title)) },
-            text = { Text(stringResource(R.string.repo_remove_confirm_body, count)) },
+            text = {
+                Text(
+                    if (novelCount != null && novelCount > 0) {
+                        stringResource(
+                            R.string.repo_remove_confirm_body_with_novels,
+                            count,
+                            novelCount,
+                        )
+                    } else {
+                        stringResource(R.string.repo_remove_confirm_body, count)
+                    },
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     removeCandidate = null

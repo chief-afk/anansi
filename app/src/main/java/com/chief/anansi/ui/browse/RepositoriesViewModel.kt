@@ -45,7 +45,7 @@ data class CatalogAddUiState(
 class RepositoriesViewModel(
     private val service: RepoRegistrationService,
     private val opdsRegistration: OpdsCatalogRegistration,
-    sourceRegistry: SourceRegistryRepository,
+    private val sourceRegistry: SourceRegistryRepository,
 ) : ViewModel() {
 
     val repos: StateFlow<List<RepoRowUi>> = sourceRegistry.observeAll()
@@ -103,6 +103,10 @@ class RepositoriesViewModel(
     fun removeRepo(repoUrl: String) {
         viewModelScope.launch { service.removeRepo(repoUrl) }
     }
+
+    /** Novels the repository removal would leave as needs-source placeholders. */
+    suspend fun affectedNovelCount(repoUrl: String): Int =
+        sourceRegistry.novelCountForRepo(repoUrl)
 
     fun dismissResult() {
         if (!_add.value.working) _add.value = RepoAddUiState()

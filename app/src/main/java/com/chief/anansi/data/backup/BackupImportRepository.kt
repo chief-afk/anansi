@@ -149,14 +149,17 @@ class BackupImportRepository(
 
                     // Imported chapters arrive with the new-arrival state
                     // false: fresh-update marking belongs to update checks.
-                    val toInsert = outcome.chaptersToInsert.mapIndexed { index, chapter ->
+                    // The chapter's backup position is its sortOrder, so a
+                    // merged re-import fills gaps without renumbering the
+                    // inserted subset from 0.
+                    val toInsert = outcome.chaptersToInsert.map { chapter ->
                         ChapterEntity(
                             novelId = novelId,
                             sourceChapterId = chapter.chapterUrl,
                             chapterUrl = chapter.chapterUrl,
                             title = chapter.title,
                             releaseDate = chapter.releaseDate,
-                            sortOrder = index,
+                            sortOrder = chapter.sortOrder,
                             isRead = chapter.isRead,
                             isNew = false,
                             firstSeenAtEpochMs = 0,

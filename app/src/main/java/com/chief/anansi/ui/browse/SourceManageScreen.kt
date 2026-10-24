@@ -22,6 +22,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,10 @@ fun SourceManageScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var showRemoveConfirm by remember { mutableStateOf(false) }
+    var removeNovelCount by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(showRemoveConfirm) {
+        removeNovelCount = if (showRemoveConfirm) viewModel.affectedNovelCount() else null
+    }
     val source = state.source
 
     Column(
@@ -157,11 +162,22 @@ fun SourceManageScreen(
     }
 
     if (showRemoveConfirm && source != null) {
+        val novelCount = removeNovelCount
         AlertDialog(
             onDismissRequest = { showRemoveConfirm = false },
             title = { Text(stringResource(R.string.manage_remove_confirm_title)) },
             text = {
-                Text(stringResource(R.string.manage_remove_confirm_body, source.displayName))
+                Text(
+                    if (novelCount != null && novelCount > 0) {
+                        stringResource(
+                            R.string.manage_remove_confirm_body_with_novels,
+                            source.displayName,
+                            novelCount,
+                        )
+                    } else {
+                        stringResource(R.string.manage_remove_confirm_body, source.displayName)
+                    },
+                )
             },
             confirmButton = {
                 TextButton(onClick = {

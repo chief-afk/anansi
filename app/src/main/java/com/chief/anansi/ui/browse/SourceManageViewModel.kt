@@ -73,6 +73,12 @@ class SourceManageViewModel(
         }
     }
 
+    /** Novels the source removal would leave as needs-source placeholders. */
+    suspend fun affectedNovelCount(): Int {
+        val identity = state.value.source?.identity ?: return 0
+        return sourceRegistry.novelCountForIdentity(identity)
+    }
+
     companion object {
         fun factory(identity: String): ViewModelProvider.Factory = viewModelFactory {
             initializer {

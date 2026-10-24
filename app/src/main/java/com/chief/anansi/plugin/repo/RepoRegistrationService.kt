@@ -20,8 +20,10 @@ import okhttp3.OkHttpClient
  * register or update the sources through the identity minting path, and
  * prune entries the manifest no longer lists. Per-entry failures are
  * reported into the error registry and returned with their reasons; a repo
- * whose entries all fail is a hard error. Removing a repo removes its
- * sources and clears their recorded errors.
+ * whose entries all fail is a hard error. Prune and removal convert a
+ * source row to the repo-less needs-source placeholder state instead of
+ * deleting it, so the novels shelved under it stay in the library; the
+ * plugin ids' recorded errors are cleared either way.
  */
 class RepoRegistrationService(
     client: OkHttpClient,
@@ -98,8 +100,9 @@ class RepoRegistrationService(
             )
         }
 
-        // Sources of this repo the manifest no longer lists are gone; entries
-        // still listed stay registered even when their probe failed this time
+        // Sources of this repo the manifest no longer lists convert to the
+        // needs-source placeholder state (their novels stay); entries still
+        // listed stay registered even when their probe failed this time
         // (the previously registered version keeps working, with the failure
         // recorded in the error registry).
         val keepSourceIds = normalized.entries
@@ -128,13 +131,16 @@ class RepoRegistrationService(
         )
     }
 
-    /** Removes the repository and all of its sources, clearing their errors. */
+    /**
+     * Removes the repository: its sources convert to the needs-source
+     * placeholder state (their novels stay) and their errors are cleared.
+     */
     suspend fun removeRepo(repoUrl: String) {
         val removed = sourceRegistry.removeRepo(repoUrl)
         removed.forEach { errorRegistry.clear(it) }
     }
 
-    /** Removes a single source and clears its recorded error. */
+    /** Converts a single source to the needs-source placeholder and clears its recorded error. */
     suspend fun removeSource(identity: String) {
         val existing = sourceRegistry.findByIdentity(identity)
         sourceRegistry.removeSource(identity)

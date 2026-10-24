@@ -28,12 +28,17 @@ object BackupImportMapper {
     fun v1EraIdentity(v1SourceId: Long): String =
         SourceEcosystem.LNREADER.identity(v1SourceId.toString())
 
-    /** One chapter the import wants stored, in the backup's array order. */
+    /**
+     * One chapter the import wants stored, in the backup's array order.
+     * `sortOrder` is that full-list position, kept through merge so an
+     * inserted subset lands at the same positions a fresh import stores.
+     */
     data class PlannedChapter(
         val chapterUrl: String,
         val title: String,
         val releaseDate: String?,
         val isRead: Boolean,
+        val sortOrder: Int,
     )
 
     /** The novel's single history pointer, already remapped to a chapter url. */
@@ -70,12 +75,13 @@ object BackupImportMapper {
         historyRows: List<LnReaderBackupHistoryRow>,
         chapterUrlByBackupChapterId: Map<Long, String>,
     ): NovelPlan {
-        val planned = chapters.map { chapter ->
+        val planned = chapters.mapIndexed { index, chapter ->
             PlannedChapter(
                 chapterUrl = chapter.chapterUrl,
                 title = chapter.chapterName,
                 releaseDate = chapter.releaseDate?.takeIf { it.isNotEmpty() },
                 isRead = chapter.read == 1,
+                sortOrder = index,
             )
         }
         val skips = ArrayList<String>()

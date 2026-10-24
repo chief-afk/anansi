@@ -26,6 +26,18 @@ interface SourceDao {
     @Query("SELECT * FROM sources WHERE repoUrl = :repoUrl ORDER BY numericId")
     suspend fun findByRepoUrl(repoUrl: String): List<SourceEntity>
 
+    @Query(
+        "SELECT COUNT(*) FROM novels JOIN sources ON novels.sourceId = sources.id " +
+            "WHERE sources.repoUrl = :repoUrl",
+    )
+    suspend fun countNovelsByRepoUrl(repoUrl: String): Int
+
+    @Query(
+        "SELECT COUNT(*) FROM novels " +
+            "WHERE sourceId = (SELECT id FROM sources WHERE identity = :identity)",
+    )
+    suspend fun countNovelsByIdentity(identity: String): Int
+
     /** The Browse list order: pinned first, then registration order. */
     @Query("SELECT * FROM sources ORDER BY pinned DESC, numericId")
     fun observeAll(): Flow<List<SourceEntity>>

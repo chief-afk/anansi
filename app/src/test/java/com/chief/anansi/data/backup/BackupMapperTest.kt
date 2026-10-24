@@ -223,6 +223,53 @@ class BackupMapperTest {
     }
 
     @Test
+    fun planNovelAssignsEachChapterItsBackupArrayPositionAsSortOrder() {
+        val plan = BackupImportMapper.planNovel(
+            novel = novel(),
+            chapters = listOf(
+                chapter(1, "void-chapter-1/"),
+                chapter(2, "void-chapter-2/"),
+                chapter(3, "void-chapter-3/"),
+            ),
+            historyRows = emptyList(),
+            chapterUrlByBackupChapterId = emptyMap(),
+        )
+        assertEquals(listOf(0, 1, 2), plan.chapters.map { it.sortOrder })
+    }
+
+    @Test
+    fun mergedReimportInsertsMissingChaptersAtTheirBackupPositions() {
+        val plan = BackupImportMapper.planNovel(
+            novel = novel(),
+            chapters = listOf(
+                chapter(1, "stored/"),
+                chapter(2, "gap-filler/"),
+                chapter(3, "also-new/"),
+            ),
+            historyRows = emptyList(),
+            chapterUrlByBackupChapterId = emptyMap(),
+        )
+        val outcome = BackupImportMapper.mergeNovel(
+            plan,
+            BackupImportMapper.ExistingNovelState(
+                chapterReadByUrl = mapOf("stored/" to false),
+            ),
+        )
+        // The inserted subset keeps its full-list positions; a 0-based
+        // renumber would collide with the stored rows' sortOrders.
+        assertEquals(
+            listOf("gap-filler/" to 1, "also-new/" to 2),
+            outcome.chaptersToInsert.map { it.chapterUrl to it.sortOrder },
+        )
+        // A fresh import of the same backup converges to the same positions.
+        val fresh = BackupImportMapper.mergeNovel(plan, BackupImportMapper.ExistingNovelState())
+        assertEquals(
+            listOf("stored/" to 0, "gap-filler/" to 1, "also-new/" to 2),
+            fresh.chaptersToInsert.map { it.chapterUrl to it.sortOrder },
+        )
+    }
+
+    @Test
     fun historyAppliesOnlyWhenNewerThanStored() {
         val plan = BackupImportMapper.planNovel(
             novel = novel(),

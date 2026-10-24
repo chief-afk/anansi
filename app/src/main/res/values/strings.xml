@@ -70,7 +70,7 @@
     <string name="repo_line_plugins">%1$d plugins</string>
     <string name="repo_line_added">%1$d added</string>
     <string name="repo_line_updated">%1$d updated</string>
-    <string name="repo_line_removed">%1$d removed</string>
+    <string name="repo_line_removed">%1$d removed; their novels stay in your library</string>
     <string name="repo_result_failures_title">FAILED ENTRIES · %1$d</string>
     <string name="repo_result_failure_line">%1$s: %2$s</string>
     <string name="repo_result_failures_more">…and %1$d more</string>
@@ -80,6 +80,7 @@
     <string name="repo_remove">Remove repository</string>
     <string name="repo_remove_confirm_title">Remove repository?</string>
     <string name="repo_remove_confirm_body">All %1$d sources from this repository will be removed from Browse.</string>
+    <string name="repo_remove_confirm_body_with_novels">All %1$d sources from this repository will be removed from Browse. %2$d of your novels from them stay in your library as needs-source placeholders; re-adding a repository carrying the same plugins relinks them.</string>
     <string name="repo_neutrality">Repositories are third-party. Anansi does not host, curate, or endorse any of them. Install a repository only if you trust its maintainer; sources run sandboxed and request only the capabilities they need.</string>
 
     <!-- OPDS catalogs ; catalogs are
@@ -111,6 +112,7 @@
     <string name="manage_remove">Remove source</string>
     <string name="manage_remove_confirm_title">Remove source?</string>
     <string name="manage_remove_confirm_body">%1$s will be removed from Browse.</string>
+    <string name="manage_remove_confirm_body_with_novels">%1$s will be removed from Browse. %2$d of your novels from it stay in your library as needs-source placeholders; re-adding a repository carrying this plugin relinks them.</string>
 
     <!-- More hub -->
     <string name="more_header_title">Anansi</string>
