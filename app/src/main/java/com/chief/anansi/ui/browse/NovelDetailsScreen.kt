@@ -141,7 +141,9 @@ fun NovelDetailsScreen(
                     onToggleLibrary = viewModel::toggleLibrary,
                     onMarkRead = viewModel::setChapterRead,
                     onOpenSheet = { showSheet = true },
-                    onOpenChapter = onOpenChapter,
+                    onOpenChapter = { chapter ->
+                        viewModel.openChapter(chapter, onReady = onOpenChapter)
+                    },
                     onListen = startListen,
                 )
             }
@@ -354,9 +356,9 @@ private fun MetaHeader(
                         ),
                     )
                 }
-                // The Listen entry: shelved novels only, the
-                // same condition as the reader's chapter tap, so the control
-                // never appears as a dead button.
+                // The Listen entry: any novel with a loaded chapter list
+                // works, because beginQueue creates the reader rows the
+                // queue needs.
                 FilledTonalButton(
                     onClick = onListen,
                     enabled = state.chapters.isNotEmpty(),
@@ -417,9 +419,9 @@ private fun ChapterItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            // The reader opens shelved chapters only: progress and read marks
-            // key on the library rows, which source-only chapters lack.
-            .clickable(enabled = chapter.id != null, onClick = onOpen)
+            // Tapping creates the reader rows lazily; progress and read
+            // marks key on them once they exist.
+            .clickable(onClick = onOpen)
             .padding(start = 18.dp, end = 4.dp),
     ) {
         Column(

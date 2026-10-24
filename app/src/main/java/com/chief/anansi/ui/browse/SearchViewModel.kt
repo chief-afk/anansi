@@ -136,7 +136,8 @@ class SearchViewModel(
             updateGroup(groupIdentity) {
                 it.copy(
                     status = SearchGroupStatus.Done,
-                    novels = items,
+                    // Duplicate paths would collide in the LazyColumn key.
+                    novels = items.distinctBy { it.path },
                     coverHeaders = coverHeaders(source),
                 )
             }

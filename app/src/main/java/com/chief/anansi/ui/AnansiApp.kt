@@ -98,7 +98,14 @@ fun AnansiApp(
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(AnansiTab.LIBRARY.route) {
-                LibraryScreen(onBrowseSources = { navController.navigateToTab(AnansiTab.BROWSE) })
+                LibraryScreen(
+                    onBrowseSources = { navController.navigateToTab(AnansiTab.BROWSE) },
+                    onOpenNovel = { identity, novelPath ->
+                        navController.navigate(
+                            "browse/source/$identity/novel/${Uri.encode(novelPath)}",
+                        )
+                    },
+                )
             }
             composable(AnansiTab.UPDATES.route) {
                 UpdatesScreen(
@@ -114,7 +121,15 @@ fun AnansiApp(
                     },
                 )
             }
-            composable(AnansiTab.HISTORY.route) { HistoryScreen() }
+            composable(AnansiTab.HISTORY.route) {
+                HistoryScreen(
+                    onOpenNovel = { identity, novelPath, chapterPath ->
+                        navController.navigate(
+                            "reader/$identity/${Uri.encode(novelPath)}/${Uri.encode(chapterPath)}",
+                        )
+                    },
+                )
+            }
             composable(AnansiTab.BROWSE.route) {
                 BrowseScreen(
                     onOpenRepositories = { navController.navigate(REPOSITORIES_ROUTE) },

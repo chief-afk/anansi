@@ -18,6 +18,7 @@ data class HistoryEntry(
     val novel: NovelEntity,
     @Relation(parentColumn = "chapterId", entityColumn = "id")
     val chapter: ChapterEntity,
+    val sourceIdentity: String,
 )
 
 @Dao
@@ -27,7 +28,15 @@ interface ReadingProgressDao {
     suspend fun upsert(progress: ReadingProgressEntity)
 
     @Transaction
-    @Query("SELECT * FROM reading_progress ORDER BY updatedAt DESC")
+    @Query(
+        """
+        SELECT reading_progress.*, sources.identity AS sourceIdentity
+        FROM reading_progress
+        JOIN novels ON novels.id = reading_progress.novelId
+        JOIN sources ON sources.id = novels.sourceId
+        ORDER BY reading_progress.updatedAt DESC
+        """,
+    )
     fun observeHistory(): Flow<List<HistoryEntry>>
 
     @Query("DELETE FROM reading_progress WHERE novelId = :novelId")

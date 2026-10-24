@@ -179,6 +179,26 @@ class NovelDetailsViewModel(
         }
     }
 
+    /**
+     * Opens a chapter from the source-only list: the reader's rows are
+     * created lazily first (shelving is never required), then navigation
+     * runs. An ensure failure surfaces once as the refresh snackbar.
+     */
+    fun openChapter(chapter: ChapterRow, onReady: (ChapterRow) -> Unit) {
+        val sourceIdentity = entity?.identity ?: return
+        viewModelScope.launch {
+            try {
+                libraryRepository.ensureSourceNovelRows(sourceIdentity, novelPath)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.update { it.copy(refreshFailure = e.message ?: "unknown failure") }
+                return@launch
+            }
+            onReady(chapter)
+        }
+    }
+
     fun applySheetOptions(sort: ChapterSort, showUnread: Boolean, showRead: Boolean) {
         _state.update {
             it.copy(sort = sort, showUnread = showUnread, showRead = showRead)
@@ -238,7 +258,7 @@ class NovelDetailsViewModel(
             val details = source.novelDetails(novelPath)
             val fromSource = details.chapters.mapIndexed { index, chapter ->
                 chapter.toChapterRow(index)
-            }
+            }.distinctBy { it.path }
             sourceChapters = fromSource
             _state.update { current ->
                 current.copy(

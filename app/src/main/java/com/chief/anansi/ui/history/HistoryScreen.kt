@@ -1,6 +1,7 @@
 package com.chief.anansi.ui.history
 
 import android.text.format.DateUtils
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +52,7 @@ import java.time.format.FormatStyle
 
 @Composable
 fun HistoryScreen(
+    onOpenNovel: (identity: String, novelPath: String, chapterPath: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HistoryViewModel = viewModel(factory = HistoryViewModel.Factory),
 ) {
@@ -96,6 +98,11 @@ fun HistoryScreen(
             else -> HistoryList(
                 entries = current,
                 onRemove = viewModel::removeEntry,
+                onOpen = { entry ->
+                    viewModel.openEntry(entry) {
+                        onOpenNovel(entry.sourceIdentity, entry.novel.url, entry.chapter.chapterUrl)
+                    }
+                },
             )
         }
     }
@@ -123,7 +130,11 @@ fun HistoryScreen(
 }
 
 @Composable
-private fun HistoryList(entries: List<HistoryEntry>, onRemove: (Long) -> Unit) {
+private fun HistoryList(
+    entries: List<HistoryEntry>,
+    onRemove: (Long) -> Unit,
+    onOpen: (HistoryEntry) -> Unit,
+) {
     val today = LocalDate.now()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -139,19 +150,25 @@ private fun HistoryList(entries: List<HistoryEntry>, onRemove: (Long) -> Unit) {
                 )
             }
             items(group.entries, key = { it.progress.novelId }) { entry ->
-                HistoryRow(entry = entry, onRemove = onRemove)
+                HistoryRow(entry = entry, onRemove = onRemove, onOpen = { onOpen(entry) })
             }
         }
     }
 }
 
 @Composable
-private fun HistoryRow(entry: HistoryEntry, onRemove: (Long) -> Unit) {
+private fun HistoryRow(
+    entry: HistoryEntry,
+    onRemove: (Long) -> Unit,
+    onOpen: () -> Unit,
+) {
     var menuExpanded by remember { mutableStateOf(false) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
+            // The whole row opens the reader at the recorded chapter.
+            .clickable(onClick = onOpen)
             .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
     ) {
         NovelCover(

@@ -120,7 +120,10 @@ class AppContainer(context: Context) {
         sourceRegistry = sourceRegistryRepository,
     )
 
-    val libraryRepository = LibraryRepository(database)
+    val libraryRepository = LibraryRepository(
+        database = database,
+        loadSource = { sourceSessions.load(it) },
+    )
     val historyRepository = HistoryRepository(database)
 
     // The lnreader v1 backup restore: parse-then-write, offline,

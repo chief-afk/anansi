@@ -1,5 +1,6 @@
 package com.chief.anansi.ui.library
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +42,7 @@ import com.chief.anansi.ui.components.ScreenTitle
 @Composable
 fun LibraryScreen(
     onBrowseSources: () -> Unit,
+    onOpenNovel: (identity: String, novelPath: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = viewModel(factory = LibraryViewModel.Factory),
 ) {
@@ -73,13 +75,13 @@ fun LibraryScreen(
                 }
             }
 
-            else -> LibraryGrid(current)
+            else -> LibraryGrid(current, onOpenNovel)
         }
     }
 }
 
 @Composable
-private fun LibraryGrid(library: List<LibraryNovel>) {
+private fun LibraryGrid(library: List<LibraryNovel>, onOpenNovel: (String, String) -> Unit) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 16.dp),
@@ -88,14 +90,19 @@ private fun LibraryGrid(library: List<LibraryNovel>) {
         modifier = Modifier.fillMaxSize(),
     ) {
         items(library, key = { it.novel.id }) { item ->
-            LibraryCell(item)
+            LibraryCell(
+                item = item,
+                onOpen = { onOpenNovel(item.sourceIdentity, item.novel.url) },
+            )
         }
     }
 }
 
 @Composable
-private fun LibraryCell(item: LibraryNovel) {
-    Column {
+private fun LibraryCell(item: LibraryNovel, onOpen: () -> Unit) {
+    Column(
+        modifier = Modifier.clickable(onClick = onOpen),
+    ) {
         Box {
             NovelCover(
                 title = item.novel.title,

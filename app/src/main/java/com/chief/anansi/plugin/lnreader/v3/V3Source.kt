@@ -192,9 +192,15 @@ class V3Source internal constructor(
             is JsonArray -> raw
             else -> throw parseFailure("Plugin \"$pluginId\" chapters is not a list")
         }
+        val name = optionalString(novel, "name")
+        // An all-empty result is a plugin failure, not a nameless novel with
+        // no chapters; it fails loudly like an empty chapter does.
+        if (name.isNullOrBlank() && chapters.isEmpty()) {
+            throw parseFailure("Plugin \"$pluginId\" parseNovel returned no name and no chapters")
+        }
         return SourceNovel(
             path = path,
-            name = optionalString(novel, "name"),
+            name = name,
             cover = optionalString(novel, "cover"),
             genres = textish(novel, "genres"),
             summary = textish(novel, "summary"),

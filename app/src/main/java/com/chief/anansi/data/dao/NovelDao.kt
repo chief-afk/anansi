@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
  */
 data class LibraryNovel(
     @Embedded val novel: NovelEntity,
+    val sourceIdentity: String,
     val unreadCount: Int,
     val continueChapterOrder: Int?,
     val continueChapterTitle: String?,
@@ -42,13 +43,14 @@ interface NovelDao {
 
     @Query(
         """
-        SELECT novels.*,
+        SELECT novels.*, sources.identity AS sourceIdentity,
                (SELECT COUNT(*) FROM chapters
                 WHERE chapters.novelId = novels.id AND chapters.isRead = 0) AS unreadCount,
                cp.sortOrder AS continueChapterOrder,
                cp.title AS continueChapterTitle,
                rp.percent AS continuePercent
         FROM novels
+        JOIN sources ON sources.id = novels.sourceId
         LEFT JOIN reading_progress rp ON rp.novelId = novels.id
         LEFT JOIN chapters cp ON cp.id = rp.chapterId
         WHERE novels.inLibrary = 1

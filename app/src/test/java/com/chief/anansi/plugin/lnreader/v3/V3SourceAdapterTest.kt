@@ -263,6 +263,25 @@ class V3SourceAdapterTest {
     }
 
     @Test
+    fun emptyDetailsFailLoudlyAsParse() {
+        newRuntime().use { runtime ->
+            val registry = InMemorySourceErrorRegistry()
+            runBlocking {
+                val source = load(runtime, registry, item("fixture-empty-details"), EMPTY_DETAILS_DIST)
+                try {
+                    source.novelDetails("some-novel")
+                    fail("an all-empty parseNovel result must fail loudly")
+                } catch (e: SourcePluginException) {
+                    assertTrue(e.error is SourceError.Parse)
+                    assertTrue(e.message!!.contains("returned no name and no chapters"))
+                }
+                assertTrue(registry.latest("fixture-empty-details") is SourceError.Parse)
+                source.close()
+            }
+        }
+    }
+
+    @Test
     fun networkFailureMapsIntoTheRegistry() {
         newRuntime().use { runtime ->
             val registry = InMemorySourceErrorRegistry()
@@ -307,6 +326,22 @@ class V3SourceAdapterTest {
                   status = "publishing finished";
                 }
                 return { name: "N", path: novelPath, chapters: [], status: status };
+              },
+              parseChapter: async function () { return "text"; },
+              searchNovels: async function () { return []; },
+            };
+        """.trimIndent()
+
+        val EMPTY_DETAILS_DIST = """
+            exports.default = {
+              id: "fixture-empty-details",
+              name: "Empty Details Fixture",
+              site: "https://fixture.invalid/",
+              lang: "en",
+              version: "1.0.0",
+              popularNovels: async function () { return []; },
+              parseNovel: async function (novelPath) {
+                return { path: novelPath, chapters: [] };
               },
               parseChapter: async function () { return "text"; },
               searchNovels: async function () { return []; },
