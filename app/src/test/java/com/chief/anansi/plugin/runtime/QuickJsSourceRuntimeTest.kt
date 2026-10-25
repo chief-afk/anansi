@@ -2,6 +2,10 @@ package com.chief.anansi.plugin.runtime
 
 import com.chief.anansi.plugin.error.SourceError
 import com.chief.anansi.plugin.error.SourcePluginException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertNotSame
@@ -23,10 +27,11 @@ class QuickJsSourceRuntimeTest {
     private fun newRuntime(
         callDeadlineMillis: Long = SourceRuntimeLimits.CALL_DEADLINE_MILLIS,
         slotMemoryLimitBytes: Long = SourceRuntimeLimits.SLOT_MEMORY_LIMIT_BYTES,
+        fetchBridge: FetchBridge = FetchBridge(OkHttpClient()),
     ): QuickJsSourceRuntime = QuickJsSourceRuntime(
         hostScript = resourceText("pluginhost/host.js"),
         vendorScript = resourceText("pluginhost/vendor.js"),
-        fetchBridge = FetchBridge(OkHttpClient()),
+        fetchBridge = fetchBridge,
         callDeadlineMillis = callDeadlineMillis,
         slotMemoryLimitBytes = slotMemoryLimitBytes,
     )
@@ -135,6 +140,77 @@ class QuickJsSourceRuntimeTest {
                 val stamp = reloaded.call("readStoredStamp", "[]")
                 assertTrue(stamp.contains("2026/01/15"))
             }
+        }
+    }
+
+    @Test
+    fun replacementWhileCallIsFetchParkedLetsCallFinishThenClosesSlot() {
+        val fetchArrived = CountDownLatch(1)
+        val fetchRelease = CountDownLatch(1)
+        val hangingClient = OkHttpClient.Builder()
+            .addInterceptor {
+                fetchArrived.countDown()
+                fetchRelease.await()
+                throw java.io.IOException("test fetch released")
+            }
+            .build()
+        try {
+            newRuntime(
+                callDeadlineMillis = 1_000,
+                fetchBridge = FetchBridge(hangingClient),
+            ).use { runtime ->
+                runBlocking {
+                    val parked = runtime.load(
+                        "replaced",
+                        tinyPlugin(
+                            ", probe: async function () {" +
+                                " await fetch(\"http://192.0.2.1/hang\"); return \"done\"; }",
+                        ),
+                    )
+                    // Run the call on a dispatcher of its own: this test
+                    // thread blocks on the latch below while the call
+                    // progresses into the fetch binding.
+                    val inFlight = async(Dispatchers.IO) {
+                        try {
+                            parked.call("probe", "[]")
+                            null
+                        } catch (e: Exception) {
+                            e
+                        }
+                    }
+                    assertTrue(
+                        "the plugin fetch never went in flight",
+                        fetchArrived.await(10, TimeUnit.SECONDS),
+                    )
+                    // Replace the slot while the call is suspended inside
+                    // the fetch binding, i.e. with the engine thread
+                    // already released, so the queued close must wait.
+                    val replacement = runtime.load("replaced", tinyPlugin())
+                    assertNotSame(parked, replacement)
+                    val outcome = inFlight.await()
+                    assertTrue(
+                        "in-flight call must fail via its own deadline, was: $outcome",
+                        outcome is SourcePluginException && outcome.error is SourceError.Network,
+                    )
+                    // The replaced slot closes only after the call ended.
+                    var closed = false
+                    var attempts = 0
+                    while (!closed && attempts < 200) {
+                        attempts++
+                        closed = try {
+                            parked.inspect()
+                            false
+                        } catch (e: IllegalStateException) {
+                            e.message!!.contains("runtime slot is closed")
+                        }
+                        if (!closed) Thread.sleep(10)
+                    }
+                    assertTrue("replaced slot never closed after the call ended", closed)
+                    assertTrue(replacement.inspect().contains("\"pluginId\":\"replaced\""))
+                }
+            }
+        } finally {
+            fetchRelease.countDown()
         }
     }
 }

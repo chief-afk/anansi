@@ -41,7 +41,8 @@ import kotlinx.serialization.json.jsonPrimitive
  * resolves through the [FetchBridge] async binding. Slots live in an LRU
  * bounded at [SourceRuntimeLimits.SLOT_LRU_MAX_ENTRIES]; a same-dist reload
  * returns the live slot, a changed dist replaces it with the old slot's
- * close deferred onto the engine thread so in-flight calls finish first.
+ * close deferred until the slot is idle and executed on the engine thread,
+ * so an in-flight call always finishes first.
  * Per-slot storage scopes live here and survive every slot close. The engine
  * ships bundled in the APK and is never downloaded.
  */
@@ -72,6 +73,14 @@ class QuickJsSourceRuntime(
      */
     private val slots = LinkedHashMap<String, QuickJsPlugin>(0, 0.75f, true)
     private val slotLock = Any()
+
+    /**
+     * Replaced or evicted slots still running at least one call. Each is
+     * closed on the engine thread once its last in-flight call ends, so a
+     * call suspended in a plugin fetch (which has released the engine
+     * thread) always finishes first. Guarded by [slotLock].
+     */
+    private val retiredSlots = mutableListOf<QuickJsPlugin>()
 
     private val loadMutexes = ConcurrentHashMap<String, Mutex>()
 
@@ -147,12 +156,13 @@ class QuickJsSourceRuntime(
             }
             previous to collected.toList()
         }
-        // Replaced and evicted slots close via the engine queue: the close
-        // cannot interleave with an evaluate, so an in-flight call always
-        // finishes first and a stale handle fails the Kotlin-side check
-        // instead of touching freed native memory.
-        replaced?.let { closeWhenEngineIdle(it) }
-        evicted.forEach { closeWhenEngineIdle(it) }
+        // Replaced and evicted slots close on the engine thread, but only
+        // once idle: a call suspended in a plugin fetch has released the
+        // engine thread, so the close waits for the last in-flight call to
+        // end before it is queued. A stale handle still fails the
+        // Kotlin-side check instead of touching freed native memory.
+        retireOrClose(replaced)
+        evicted.forEach { retireOrClose(it) }
         return plugin
     }
 
@@ -160,8 +170,9 @@ class QuickJsSourceRuntime(
         if (closed) return
         closed = true
         val all = synchronized(slotLock) {
-            val values = slots.values.toList()
+            val values = slots.values.toList() + retiredSlots
             slots.clear()
+            retiredSlots.clear()
             values
         }
         all.forEach { it.closeNowQuietly() }
@@ -174,9 +185,38 @@ class QuickJsSourceRuntime(
         synchronized(slotLock) { slots[pluginId] }
     }
 
+    /**
+     * Closes [plugin] now when idle; otherwise parks it in [retiredSlots]
+     * so its close is queued when the last in-flight call ends.
+     */
+    private fun retireOrClose(plugin: QuickJsPlugin?) {
+        if (plugin == null) return
+        val busy = synchronized(slotLock) {
+            if (plugin.isIdle) {
+                false
+            } else {
+                retiredSlots.add(plugin)
+                true
+            }
+        }
+        if (!busy) closeWhenEngineIdle(plugin)
+    }
+
+    private fun takeForClose(plugin: QuickJsPlugin): Boolean =
+        synchronized(slotLock) { retiredSlots.remove(plugin) }
+
     private fun closeWhenEngineIdle(plugin: QuickJsPlugin) {
         try {
-            engineExecutor.execute { plugin.closeNowQuietly() }
+            engineExecutor.execute {
+                if (plugin.isIdle) {
+                    plugin.closeNowQuietly()
+                } else {
+                    // A stale-handle call slipped in after the close was
+                    // queued; park the slot again so that call finishes
+                    // first and its completion re-queues the close.
+                    retireOrClose(plugin)
+                }
+            }
         } catch (e: RejectedExecutionException) {
             plugin.closeNowQuietly()
         }
@@ -322,7 +362,11 @@ class QuickJsSourceRuntime(
             try {
                 return block()
             } finally {
-                inFlight.decrementAndGet()
+                // The last call of a retired slot ends here; only now is
+                // its close safe to queue on the engine thread.
+                if (inFlight.decrementAndGet() == 0 && takeForClose(this)) {
+                    this@QuickJsSourceRuntime.closeWhenEngineIdle(this)
+                }
             }
         }
 
