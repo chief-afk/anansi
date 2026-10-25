@@ -6,11 +6,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.chief.anansi.data.dao.ChapterDao
 import com.chief.anansi.data.dao.NovelDao
+import com.chief.anansi.data.dao.PluginStorageDao
 import com.chief.anansi.data.dao.ReadingProgressDao
 import com.chief.anansi.data.dao.SourceDao
 import com.chief.anansi.data.dao.SourceErrorDao
 import com.chief.anansi.data.entity.ChapterEntity
 import com.chief.anansi.data.entity.NovelEntity
+import com.chief.anansi.data.entity.PluginStorageEntity
 import com.chief.anansi.data.entity.ReadingProgressEntity
 import com.chief.anansi.data.entity.SourceEntity
 import com.chief.anansi.data.entity.SourceErrorEntity
@@ -27,8 +29,9 @@ import com.chief.anansi.data.entity.SourceErrorEntity
         ChapterEntity::class,
         ReadingProgressEntity::class,
         SourceErrorEntity::class,
+        PluginStorageEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AnansiDatabase : RoomDatabase() {
@@ -37,6 +40,7 @@ abstract class AnansiDatabase : RoomDatabase() {
     abstract fun chapterDao(): ChapterDao
     abstract fun readingProgressDao(): ReadingProgressDao
     abstract fun sourceErrorDao(): SourceErrorDao
+    abstract fun pluginStorageDao(): PluginStorageDao
 
     companion object {
         const val NAME = "anansi.db"
@@ -72,6 +76,22 @@ abstract class AnansiDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE novels ADD COLUMN lastCheckedAtEpochMs INTEGER NOT NULL DEFAULT 0",
                 )
+            }
+        }
+
+        /**
+         * The plugin_storage create statement; the committed v4 export
+         * schema declares the same SQL (pinned by PluginStorageMigrationTest).
+         */
+        const val PLUGIN_STORAGE_CREATE_SQL =
+            "CREATE TABLE IF NOT EXISTS `plugin_storage` (" +
+                "`pluginId` TEXT NOT NULL, `document` TEXT NOT NULL, " +
+                "`updatedAt` INTEGER NOT NULL, PRIMARY KEY(`pluginId`))"
+
+        /** v4 (plugin storage durability): per-plugin storage documents. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(PLUGIN_STORAGE_CREATE_SQL)
             }
         }
     }

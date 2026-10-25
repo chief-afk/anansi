@@ -17,9 +17,9 @@ import org.junit.Test
 
 /**
  * Plugin-host fixture test (spec: New tests item 1): loads a scripted
- * minimal plugin, exercises the require map, the storage round trip, and
- * asserts the loud error types for @libs/aes, unsupported requires,
- * fetchProto, and empty dists.
+ * minimal plugin, exercises the require map (including @libs/aes resolving
+ * to the vendored ciphers), the storage round trip, and asserts the loud
+ * error types for unsupported requires, fetchProto, and empty dists.
  */
 class PluginHostFixtureTest {
 
@@ -100,20 +100,25 @@ class PluginHostFixtureTest {
     }
 
     @Test
-    fun libsAesFailsLoudlyNamingPlugin() {
+    fun libsAesRequiresSuccessfully() {
         newRuntime().use { runtime ->
             runBlocking {
-                try {
-                    runtime.load(
-                        "fixture-aes",
-                        "const aes = require(\"@libs/aes\"); exports.default = { popularNovels: async function () { return []; } };",
-                    )
-                    fail("@libs/aes load must throw")
-                } catch (e: SourcePluginException) {
-                    assertTrue(e.error is SourceError.UnsupportedFeature)
-                    assertTrue(e.message!!.contains("@libs/aes"))
-                    assertTrue(e.message!!.contains("fixture-aes"))
-                }
+                val plugin = runtime.load(
+                    "fixture-aes",
+                    "const aes = require(\"@libs/aes\"); " +
+                        "exports.default = { " +
+                        "popularNovels: async function () { return []; }, " +
+                        "probe: async function () { " +
+                        "return { " +
+                        "hasChacha: typeof aes.chacha === \"object\", " +
+                        "hasSalsa: typeof aes.salsa === \"object\", " +
+                        "hasAes: typeof aes.aes === \"object\" }; } };",
+                )
+                val probe = Json.parseToJsonElement(plugin.call("probe", "[]")).jsonObject
+                assertTrue(probe.getValue("hasChacha").jsonPrimitive.content == "true")
+                assertTrue(probe.getValue("hasSalsa").jsonPrimitive.content == "true")
+                assertTrue(probe.getValue("hasAes").jsonPrimitive.content == "true")
+                plugin.close()
             }
         }
     }

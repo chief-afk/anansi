@@ -147,16 +147,15 @@ object V1EraPluginLoader {
     }
 
     /**
-     * The adapter postlude appended to every v1-era module. Unlike the v3
-     * wrapper it does not re-apply values into filter objects (the v1-era
-     * filters array is a schema; user values ride the popularNovels options
-     * argument, which the source builds from the stored document per call).
-     * It hoists module-level exports into the exports.default shape the
-     * host expects, adds the storage-backed filter-values members, and
-     * wraps parseChapter to normalize HTML chapter bodies to plain text
-     * inside the SourceChapter object.
+     * The hoist stanza the loader and the registration probe share: hoists
+     * module-level exports into the exports.default shape the host expects,
+     * exactly the visibility rule [ADAPTER_WRAPPER] applies. A no-op for
+     * dists that already set exports.default (every v3 dist). Appended by
+     * [com.chief.anansi.plugin.repo.GenerationProbe] so a module.exports-
+     * shaped v1 dist is visible to the probe's load-inspect-close pass
+     * without running the loader's generation check or registry reporting.
      */
-    private const val ADAPTER_WRAPPER = """
+    internal val MODULE_EXPORTS_HOIST = """
 ;
 (function () {
   "use strict";
@@ -166,6 +165,22 @@ object V1EraPluginLoader {
       exports.default = mod;
     }
   }
+})();
+"""
+
+    /**
+     * The adapter postlude appended to every v1-era module. Unlike the v3
+     * wrapper it does not re-apply values into filter objects (the v1-era
+     * filters array is a schema; user values ride the popularNovels options
+     * argument, which the source builds from the stored document per call).
+     * It adds the storage-backed filter-values members and wraps
+     * parseChapter to normalize HTML chapter bodies to plain text inside
+     * the SourceChapter object. The hoist stanza rides ahead of it.
+     */
+    private val ADAPTER_WRAPPER = MODULE_EXPORTS_HOIST + """
+;
+(function () {
+  "use strict";
   var plugin = exports.default;
   if (!plugin || typeof plugin !== "object") return;
   var store = require("@libs/storage").storage;

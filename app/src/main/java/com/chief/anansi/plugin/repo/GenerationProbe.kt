@@ -5,6 +5,7 @@ import com.chief.anansi.plugin.JsSourceRuntime
 import com.chief.anansi.plugin.PluginIds
 import com.chief.anansi.plugin.error.SourceError
 import com.chief.anansi.plugin.error.SourcePluginException
+import com.chief.anansi.plugin.lnreader.v1era.V1EraPluginLoader
 import com.chief.anansi.plugin.lnreader.v3.classifyCallFailure
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -15,16 +16,19 @@ import kotlinx.serialization.json.jsonObject
  * Generation probe for foreign repository entries: loads a dist into the
  * shared runtime in probe mode (load, inspect, close; nothing is kept) and
  * discriminates by the parse-member rule the LNReader adapters enforce at
- * load: parseNovel marks v3, parseNovelAndChapters marks v1-era. The
- * adapters' own checks stay the authoritative enforcement when the source
- * is later loaded for real; this probe only routes registration.
+ * load: parseNovel marks v3, parseNovelAndChapters marks v1-era. The dist
+ * is loaded with the v1-era loader's [V1EraPluginLoader.MODULE_EXPORTS_HOIST]
+ * stanza, the exact visibility rule the loader applies, so a
+ * module.exports-shaped v1 dist classifies instead of failing its load.
+ * The adapters' own checks stay the authoritative enforcement when the
+ * source is later loaded for real; this probe only routes registration.
  */
 class GenerationProbe(private val runtime: JsSourceRuntime) {
 
     /** Returns [SourceGenerations.V3] or [SourceGenerations.V1ERA]. */
     suspend fun probe(pluginId: String, dist: String): String {
         val safeId = PluginIds.validate(pluginId)
-        val plugin = runtime.load(safeId, dist)
+        val plugin = runtime.load(safeId, dist + V1EraPluginLoader.MODULE_EXPORTS_HOIST)
         val members = try {
             val inspection = try {
                 plugin.inspect()

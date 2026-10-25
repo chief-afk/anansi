@@ -3,9 +3,10 @@
  * bundle so the bundle can never capture the host's fetch bridge.
  *
  * Sections: platform surface the engine lacks (base64, UTF-8
- * TextEncoder/TextDecoder, URL/URLSearchParams, console, timers), the
+ * TextEncoder/TextDecoder, URL/URLSearchParams, Headers, Blob/File/FormData,
+ * AbortController, console, timers), the loud Intl stub, the
  * id-multiplexed fetch bridge with a Response-like object, the per-plugin
- * storage scopes, the 12-entry require map, and the dist loader/caller.
+ * storage scopes, the 13-entry require map, and the dist loader/caller.
  *
  * Loud-failure convention: errors the host itself rejects are thrown as
  * `anansi/unsupported-feature: <reason>`; the Kotlin boundary maps that
@@ -23,7 +24,7 @@
     return new Error("anansi/unsupported-feature: " + reason);
   }
 
-  // --- base64 (the engine has no atob/btoa) ---
+  // --- base64 (the engine has no atob/btoa; these helpers back them) ---
 
   var B64_ALPHABET =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -55,6 +56,35 @@
       if (c3 >= 0) out.push(((c2 & 3) << 6) | c3);
     }
     return new Uint8Array(out);
+  }
+
+  if (typeof global.atob === "undefined") {
+    global.atob = function (text) {
+      var bytes = base64ToBytes(text);
+      var out = "";
+      var CHUNK = 0x8000;
+      for (var i = 0; i < bytes.length; i += CHUNK) {
+        out += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+      }
+      return out;
+    };
+  }
+
+  if (typeof global.btoa === "undefined") {
+    global.btoa = function (text) {
+      var str = String(text);
+      var bytes = new Uint8Array(str.length);
+      for (var i = 0; i < str.length; i++) {
+        var code = str.charCodeAt(i);
+        if (code > 0xff) {
+          throw new TypeError(
+            "btoa requires a Latin1 string (char code " + code + " at index " + i + ")",
+          );
+        }
+        bytes[i] = code;
+      }
+      return bytesToBase64(bytes);
+    };
   }
 
   // --- UTF-8-only TextEncoder/TextDecoder (platform surface) ---
@@ -332,6 +362,188 @@
     global.URL = AnansiURL;
   }
 
+  // --- Headers (lowercase-name pair list over the URLSearchParams shape) ---
+
+  if (typeof global.Headers === "undefined") {
+    var HeadersShim = function (init) {
+      this._pairs = [];
+      if (init == null) {
+        // Nothing to seed.
+      } else if (Array.isArray(init)) {
+        for (var i = 0; i < init.length; i++) {
+          this.append(init[i][0], init[i][1]);
+        }
+      } else if (typeof init.forEach === "function") {
+        var self = this;
+        init.forEach(function (value, name) {
+          self.append(name, value);
+        });
+      } else if (typeof init === "object") {
+        for (var key in init) {
+          if (Object.prototype.hasOwnProperty.call(init, key)) {
+            this.append(key, init[key]);
+          }
+        }
+      }
+    };
+    HeadersShim.prototype.append = function (name, value) {
+      this._pairs.push([String(name).toLowerCase(), String(value)]);
+    };
+    HeadersShim.prototype.set = function (name, value) {
+      name = String(name).toLowerCase();
+      value = String(value);
+      var replaced = false;
+      var next = [];
+      for (var i = 0; i < this._pairs.length; i++) {
+        if (this._pairs[i][0] === name && !replaced) {
+          next.push([name, value]);
+          replaced = true;
+        } else if (this._pairs[i][0] !== name) {
+          next.push(this._pairs[i]);
+        }
+      }
+      if (!replaced) next.push([name, value]);
+      this._pairs = next;
+    };
+    HeadersShim.prototype.get = function (name) {
+      name = String(name).toLowerCase();
+      for (var i = 0; i < this._pairs.length; i++) {
+        if (this._pairs[i][0] === name) return this._pairs[i][1];
+      }
+      return null;
+    };
+    HeadersShim.prototype.has = function (name) {
+      name = String(name).toLowerCase();
+      for (var i = 0; i < this._pairs.length; i++) {
+        if (this._pairs[i][0] === name) return true;
+      }
+      return false;
+    };
+    HeadersShim.prototype.entries = function () {
+      return this._pairs.slice();
+    };
+    // callback(value, name): the shape normalizeHeaders flattens, so a
+    // Headers instance reaches fetch through its existing forEach branch.
+    HeadersShim.prototype.forEach = function (callback, thisArg) {
+      for (var i = 0; i < this._pairs.length; i++) {
+        callback.call(thisArg, this._pairs[i][1], this._pairs[i][0], this);
+      }
+    };
+    global.Headers = HeadersShim;
+  }
+
+  // --- Blob, File, and FormData (multipart posts) ---
+  //
+  // Blob wraps Uint8Array bytes plus a MIME type; File extends it with a
+  // name. A FormData generates its boundary once at construction and holds
+  // ordered entries; the multipart body is serialized inside bodyToBase64
+  // when the FormData is used as a fetch body.
+
+  var AnansiBlob = function (bytes, type) {
+    this._bytes = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes == null ? [] : bytes);
+    this.type = String(type || "");
+  };
+
+  var AnansiFile = function (bytes, name, type) {
+    AnansiBlob.call(this, bytes, type);
+    this.name = String(name == null ? "file" : name);
+  };
+  AnansiFile.prototype = Object.create(AnansiBlob.prototype);
+  AnansiFile.prototype.constructor = AnansiFile;
+
+  var FormDataShim = function () {
+    this._entries = [];
+    this._boundary = "----anansi" + Math.random().toString(36).slice(2);
+  };
+  FormDataShim.prototype.append = function (name, value, filename) {
+    if (value instanceof AnansiBlob) {
+      this._entries.push({
+        name: String(name),
+        value: value,
+        filename: filename != null ? String(filename) : String(value.name != null ? value.name : "blob"),
+      });
+    } else if (value != null && typeof value === "object") {
+      throw loudUnsupported(
+        "FormData value type " +
+          (value.constructor && value.constructor.name) +
+          " is not supported (use a string or a Blob/File)",
+      );
+    } else {
+      this._entries.push({ name: String(name), value: String(value) });
+    }
+  };
+  FormDataShim.prototype.entries = function () {
+    return this._entries.slice();
+  };
+
+  if (typeof global.Blob === "undefined") global.Blob = AnansiBlob;
+  if (typeof global.File === "undefined") global.File = AnansiFile;
+  if (typeof global.FormData === "undefined") global.FormData = FormDataShim;
+
+  // --- AbortController/AbortSignal (JS-side only; see fetch for the limit) ---
+
+  function abortError() {
+    var error = new Error("The operation was aborted");
+    error.name = "AbortError";
+    return error;
+  }
+
+  if (typeof global.AbortSignal === "undefined") {
+    var AbortSignalShim = function () {
+      this.aborted = false;
+      this.reason = undefined;
+      this.onabort = null;
+      this._listeners = [];
+    };
+    AbortSignalShim.prototype.addEventListener = function (type, callback) {
+      if (type === "abort" && typeof callback === "function") {
+        this._listeners.push(callback);
+      }
+    };
+    AbortSignalShim.prototype.removeEventListener = function (type, callback) {
+      if (type !== "abort") return;
+      var next = [];
+      for (var i = 0; i < this._listeners.length; i++) {
+        if (this._listeners[i] !== callback) next.push(this._listeners[i]);
+      }
+      this._listeners = next;
+    };
+    AbortSignalShim.prototype.throwIfAborted = function () {
+      if (this.aborted) throw this.reason;
+    };
+    AbortSignalShim.prototype._abort = function (reason) {
+      if (this.aborted) return;
+      this.aborted = true;
+      this.reason = reason === undefined ? abortError() : reason;
+      var listeners = this._listeners.slice();
+      this._listeners = [];
+      for (var i = 0; i < listeners.length; i++) {
+        try {
+          listeners[i].call(this);
+        } catch (e) {
+          /* a listener fault must not stop the remaining listeners */
+        }
+      }
+      if (typeof this.onabort === "function") {
+        try {
+          this.onabort.call(this);
+        } catch (e) {
+          /* an onabort fault must not reach the aborting code */
+        }
+      }
+    };
+    global.AbortSignal = AbortSignalShim;
+  }
+
+  if (typeof global.AbortController === "undefined") {
+    global.AbortController = function () {
+      this.signal = new global.AbortSignal();
+    };
+    global.AbortController.prototype.abort = function (reason) {
+      this.signal._abort(reason);
+    };
+  }
+
   // --- console -> host log; timers are loud (the host provides none) ---
 
   if (typeof global.console === "undefined") {
@@ -373,6 +585,24 @@
   global.clearInterval = function () {
     throw loudUnsupported("this host provides no timers (clearInterval)");
   };
+
+  // --- Intl is loud (the host provides no i18n APIs) ---
+  //
+  // The timer-stub pattern generalized to any member access: a Proxy whose
+  // get trap throws, so `new Intl.DateTimeFormat(...)` and every other
+  // constructor surface fails loudly and uniformly through the
+  // marker-to-UnsupportedFeature mapping.
+
+  if (typeof global.Intl === "undefined") {
+    global.Intl = new Proxy(
+      {},
+      {
+        get: function () {
+          throw loudUnsupported("this host provides no Intl (i18n APIs)");
+        },
+      },
+    );
+  }
 
   // --- per-plugin storage scopes (@libs/storage, shim.ts semantics) ---
 
@@ -475,13 +705,57 @@
     return flat;
   }
 
+  // Quotes and CR/LF are percent-encoded so a name or filename value can
+  // never break out of the Content-Disposition line.
+  function dispositionText(text) {
+    return String(text).replace(/["\r\n]/g, function (c) {
+      var hex = c.charCodeAt(0).toString(16).toUpperCase();
+      return "%" + (hex.length < 2 ? "0" + hex : hex);
+    });
+  }
+
+  function formDataToBase64(form) {
+    var encoder = new global.TextEncoder();
+    var bytes = [];
+    function pushText(text) {
+      var encoded = encoder.encode(text);
+      for (var i = 0; i < encoded.length; i++) bytes.push(encoded[i]);
+    }
+    function pushData(data) {
+      for (var i = 0; i < data.length; i++) bytes.push(data[i]);
+    }
+    var entries = form._entries;
+    for (var i = 0; i < entries.length; i++) {
+      var entry = entries[i];
+      var isBlob = entry.value instanceof AnansiBlob;
+      pushText("--" + form._boundary + "\r\n");
+      pushText('Content-Disposition: form-data; name="' + dispositionText(entry.name) + '"');
+      if (isBlob) {
+        pushText(
+          '; filename="' + dispositionText(entry.filename) + '"' +
+            "\r\nContent-Type: " + (entry.value.type || "application/octet-stream"),
+        );
+      }
+      pushText("\r\n\r\n");
+      if (isBlob) {
+        pushData(entry.value._bytes);
+      } else {
+        pushText(entry.value);
+      }
+      pushText("\r\n");
+    }
+    pushText("--" + form._boundary + "--\r\n");
+    return bytesToBase64(new Uint8Array(bytes));
+  }
+
   function bodyToBase64(body) {
     if (body == null) return null;
     if (typeof body === "string") return bytesToBase64(new global.TextEncoder().encode(body));
     if (body instanceof Uint8Array) return bytesToBase64(body);
+    if (body instanceof FormDataShim) return formDataToBase64(body);
     throw loudUnsupported(
       "fetch body type " + (body && body.constructor && body.constructor.name) +
-        " is not supported (use string or Uint8Array)",
+        " is not supported (use a string, Uint8Array, or FormData)",
     );
   }
 
@@ -549,26 +823,65 @@
       method: String(options.method || "GET").toUpperCase(),
       headers: normalizeHeaders(options.headers),
     };
+    if (options.body instanceof FormDataShim) {
+      // A user Content-Type is overridden: the boundary is generated with
+      // the FormData instance, and a header without it cannot produce a
+      // body the server can parse.
+      request.headers["Content-Type"] =
+        "multipart/form-data; boundary=" + options.body._boundary;
+    }
     var bodyBase64 = bodyToBase64(options.body);
     if (bodyBase64 !== null) request.bodyBase64 = bodyBase64;
 
-    return Promise.resolve(global.__anansiFetch(JSON.stringify(request))).then(function (envJson) {
-      var envelope = JSON.parse(envJson);
-      if (envelope.id !== request.id) {
-        throw new Error("fetch envelope id mismatch: " + envelope.id + " != " + request.id);
-      }
-      if (envelope.err) {
-        var fetchError = new Error(envelope.err);
-        // Origin evidence for the Kotlin classifier. Non-enumerable so
-        // plugin code cannot read it through property iteration.
-        Object.defineProperty(fetchError, "anansiFetchBridge", { value: true });
-        throw fetchError;
-      }
-      return makeResponse(envelope);
+    var signal = options.signal;
+    if (signal && signal.aborted) {
+      return Promise.reject(signal.reason);
+    }
+    var pending = Promise.resolve(global.__anansiFetch(JSON.stringify(request))).then(
+      function (envJson) {
+        var envelope = JSON.parse(envJson);
+        if (envelope.id !== request.id) {
+          throw new Error("fetch envelope id mismatch: " + envelope.id + " != " + request.id);
+        }
+        if (envelope.err) {
+          var fetchError = new Error(envelope.err);
+          // Origin evidence for the Kotlin classifier. Non-enumerable so
+          // plugin code cannot read it through property iteration.
+          Object.defineProperty(fetchError, "anansiFetchBridge", { value: true });
+          throw fetchError;
+        }
+        return makeResponse(envelope);
+      },
+    );
+    if (!signal) return pending;
+
+    // Pinned limitation: abort is JS-side only. The listener below rejects
+    // the plugin's awaited promise, but the underlying HTTP transfer is not
+    // severed. Real cancellation would need a second multiplexing surface
+    // (a __anansiFetchCancel(id) global plus an in-flight call registry in
+    // the Kotlin FetchBridge keyed by request id); the observable behavior
+    // plugins depend on, the awaited promise settling on abort, is
+    // deliverable without it, and the orphaned transfer finishes on its own
+    // under the host's HTTP bounds (call timeout, response cap).
+    return new Promise(function (resolve, reject) {
+      var onAbort = function () {
+        reject(signal.reason);
+      };
+      signal.addEventListener("abort", onAbort);
+      pending.then(
+        function (response) {
+          signal.removeEventListener("abort", onAbort);
+          resolve(response);
+        },
+        function (error) {
+          signal.removeEventListener("abort", onAbort);
+          reject(error);
+        },
+      );
     });
   };
 
-  // --- require map (12 entries; @libs/aes fails loudly, never a stub) ---
+  // --- require map (13 entries; @libs/aes resolves to the vendored ciphers) ---
 
   var DEFAULT_COVER =
     "https://github.com/LNReader/lnreader-plugins/blob/main/icons/src/coverNotAvailable.jpg?raw=true";
@@ -684,14 +997,10 @@
           return utf8Decode(bytes);
         },
       },
+      "@libs/aes": vendor.nobleCiphers,
       "@/types/constants": { NovelStatus: NovelStatus, defaultCover: DEFAULT_COVER },
     };
     return function (packageName) {
-      if (packageName === "@libs/aes") {
-        throw loudUnsupported(
-          "Plugin \"" + pluginId + "\" uses the unsupported @libs/aes library and cannot run",
-        );
-      }
       var lib = map[packageName];
       if (!lib) {
         throw loudUnsupported("Unsupported plugin library: " + packageName);

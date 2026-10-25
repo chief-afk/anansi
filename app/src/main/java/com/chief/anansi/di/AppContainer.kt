@@ -10,6 +10,7 @@ import com.chief.anansi.data.AnansiDatabase
 import com.chief.anansi.data.backup.BackupImportRepository
 import com.chief.anansi.data.repo.HistoryRepository
 import com.chief.anansi.data.repo.LibraryRepository
+import com.chief.anansi.data.repo.RoomPluginStorageStore
 import com.chief.anansi.data.repo.SourceRegistryRepository
 import com.chief.anansi.data.repo.UpdateRepository
 import com.chief.anansi.plugin.JsSourceRuntime
@@ -57,7 +58,7 @@ class AppContainer(context: Context) {
         appContext,
         AnansiDatabase::class.java,
         AnansiDatabase.NAME,
-    ).addMigrations(AnansiDatabase.MIGRATION_1_2, AnansiDatabase.MIGRATION_2_3).build()
+    ).addMigrations(AnansiDatabase.MIGRATION_1_2, AnansiDatabase.MIGRATION_2_3, AnansiDatabase.MIGRATION_3_4).build()
 
     // The app's one image loader; covers load through it only.
     val imageLoader: ImageLoader = ImageLoader.Builder(appContext)
@@ -73,10 +74,14 @@ class AppContainer(context: Context) {
         .callTimeout(SourceRuntimeLimits.HTTP_CALL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
         .build()
 
+    // Plugin storage documents persist through Room so filter values and
+    // settings survive process death; the runtime preloads them per slot
+    // and writes through on every plugin-side set.
     val jsSourceRuntime: JsSourceRuntime = QuickJsSourceRuntime(
         hostScript = readAsset("pluginhost/host.js"),
         vendorScript = readAsset("pluginhost/vendor.js"),
         fetchBridge = FetchBridge(okHttpClient),
+        storageStore = RoomPluginStorageStore(database.pluginStorageDao()),
     )
 
     // The single error registry: reports persist so the management screen's

@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -28,16 +29,93 @@ class QuickJsSourceRuntimeTest {
         callDeadlineMillis: Long = SourceRuntimeLimits.CALL_DEADLINE_MILLIS,
         slotMemoryLimitBytes: Long = SourceRuntimeLimits.SLOT_MEMORY_LIMIT_BYTES,
         fetchBridge: FetchBridge = FetchBridge(OkHttpClient()),
+        storageStore: PluginStorageStore = PluginStorageStore.None,
     ): QuickJsSourceRuntime = QuickJsSourceRuntime(
         hostScript = resourceText("pluginhost/host.js"),
         vendorScript = resourceText("pluginhost/vendor.js"),
         fetchBridge = fetchBridge,
+        storageStore = storageStore,
         callDeadlineMillis = callDeadlineMillis,
         slotMemoryLimitBytes = slotMemoryLimitBytes,
     )
 
     private fun tinyPlugin(extraMembers: String = ""): String =
         "exports.default = { popularNovels: async function () { return []; }$extraMembers };"
+
+    /** In-process fake of the persistence seam: a shared document map. */
+    private class FakeStorageStore : PluginStorageStore {
+        val documents = java.util.concurrent.ConcurrentHashMap<String, String>()
+        val saved = mutableListOf<Pair<String, String>>()
+
+        override suspend fun load(pluginId: String): String? = documents[pluginId]
+
+        override suspend fun save(pluginId: String, document: String) {
+            synchronized(saved) { saved += pluginId to document }
+            documents[pluginId] = document
+        }
+    }
+
+    @Test
+    fun storageSetInPluginCallReachesStoreSave() {
+        val store = FakeStorageStore()
+        newRuntime(storageStore = store).use { runtime ->
+            runBlocking {
+                val plugin = runtime.load(
+                    "stored-plugin",
+                    resourceText("pluginhost/minimal-plugin.js"),
+                )
+                plugin.call("parseChapter", """["c1"]""")
+                plugin.close()
+            }
+        }
+        val saved = synchronized(store.saved) { store.saved.toList() }
+        assertTrue("storage.set must reach the store save", saved.isNotEmpty())
+        assertTrue(saved.all { it.first == "stored-plugin" })
+        assertTrue(
+            "the saved document must carry the plugin's value, was: ${saved.last().second}",
+            saved.last().second.contains("lastStamp") && saved.last().second.contains("2026/01/15"),
+        )
+    }
+
+    @Test
+    fun freshSlotPreloadsStoredDocumentFromStore() {
+        val store = FakeStorageStore()
+        val dist = resourceText("pluginhost/minimal-plugin.js")
+        newRuntime(storageStore = store).use { first ->
+            runBlocking {
+                val plugin = first.load("stored-plugin", dist)
+                plugin.call("parseChapter", """["c1"]""")
+                plugin.close()
+            }
+        }
+        newRuntime(storageStore = store).use { second ->
+            runBlocking {
+                val reloaded = second.load("stored-plugin", dist)
+                assertTrue(
+                    "a freshly loaded slot must read the stored document back",
+                    reloaded.call("readStoredStamp", "[]").contains("2026/01/15"),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun noneDefaultKeepsStorageMemoryOnly() {
+        val dist = resourceText("pluginhost/minimal-plugin.js")
+        newRuntime().use { first ->
+            runBlocking {
+                val plugin = first.load("memory-plugin", dist)
+                plugin.call("parseChapter", """["c1"]""")
+                plugin.close()
+            }
+        }
+        newRuntime().use { second ->
+            runBlocking {
+                val reloaded = second.load("memory-plugin", dist)
+                assertEquals("null", reloaded.call("readStoredStamp", "[]"))
+            }
+        }
+    }
 
     @Test
     fun memoryLimitAbortMapsToUnsupportedFeatureNamingPluginAndLimit() {

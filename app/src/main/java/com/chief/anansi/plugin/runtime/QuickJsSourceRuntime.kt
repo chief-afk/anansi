@@ -15,6 +15,7 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.TimeoutCancellationException
@@ -45,13 +46,16 @@ import kotlinx.serialization.json.jsonPrimitive
  * returns the live slot, a changed dist replaces it with the old slot's
  * close deferred until the slot is idle and executed on the engine thread,
  * so an in-flight call always finishes first.
- * Per-slot storage scopes live here and survive every slot close. The engine
+ * Per-slot storage scopes live here and survive every slot close; when a
+ * [PluginStorageStore] is wired they also survive process death (preloaded
+ * at slot load, written through on set). The engine
  * ships bundled in the APK and is never downloaded.
  */
 class QuickJsSourceRuntime(
     private val hostScript: String,
     private val vendorScript: String,
     private val fetchBridge: FetchBridge,
+    private val storageStore: PluginStorageStore = PluginStorageStore.None,
     private val evaluationTimeoutMillis: Long = DEFAULT_EVALUATION_TIMEOUT_MILLIS,
     private val callDeadlineMillis: Long = SourceRuntimeLimits.CALL_DEADLINE_MILLIS,
     private val slotMemoryLimitBytes: Long = SourceRuntimeLimits.SLOT_MEMORY_LIMIT_BYTES,
@@ -65,7 +69,16 @@ class QuickJsSourceRuntime(
     private val engineDispatcher: ExecutorCoroutineDispatcher =
         engineExecutor.asCoroutineDispatcher()
 
-    /** Per-plugin storage scope documents, JSON-backed (shim.ts store shape). */
+    /**
+     * Per-plugin storage scope documents, JSON-backed (shim.ts store shape).
+     * Write-through into [storageStore] on every set, preloaded from it at
+     * slot load. Deviation from the D8 "loaded lazily at first access"
+     * wording: the JS storage contract is synchronous, and a synchronous
+     * `quickJs.function` binding cannot suspend to reach the store, so the
+     * lazy point is the slot load instead of the first get. Per-plugin, off
+     * main, never at app start; D8's intent (no eager reads, no app-start
+     * cost) is preserved.
+     */
     private val storageDocs = ConcurrentHashMap<String, JsonObject>()
 
     /**
@@ -119,6 +132,14 @@ class QuickJsSourceRuntime(
     }
 
     private suspend fun loadNewSlot(pluginId: String, dist: String): QuickJsPlugin {
+        // Preload the plugin's stored document before the first evaluate:
+        // the JS storage contract is synchronous, so the plugin cannot
+        // honor its stored state without it and a store failure fails the
+        // slot load loudly.
+        val stored = storageStore.load(pluginId)
+        if (stored != null) {
+            storageDocs[pluginId] = json.parseToJsonElement(stored).jsonObject
+        }
         val quickJs = withContext(engineDispatcher) {
             QuickJs.create(engineDispatcher).also { engine ->
                 engine.evaluationTimeoutMillis = evaluationTimeoutMillis
@@ -233,10 +254,25 @@ class QuickJsSourceRuntime(
             val owner = args.getOrNull(0) as? String ?: ""
             (storageDocs[owner] ?: DEFAULT_STORAGE_DOC).toString()
         }
-        quickJs.function<Any?>("__anansiStorageSet") { args ->
+        // Write-through: the in-memory cache applies synchronously (the JS
+        // contract stays synchronous; host.js ignores the returned promise),
+        // then the save is awaited. Saves serialize in call order because
+        // the evaluate that triggered the set pumps this binding job before
+        // returning. A save failure is logged, not raised: the in-memory
+        // value is already applied and a disk fault must not kill a running
+        // plugin call. The asymmetry with the loud preload failure at slot
+        // load is deliberate.
+        quickJs.asyncFunction<Any?>("__anansiStorageSet") { args ->
             val owner = args.getOrNull(0) as? String ?: ""
             val document = json.parseToJsonElement(args.getOrNull(1) as? String ?: "{}").jsonObject
             storageDocs[owner] = document
+            try {
+                storageStore.save(owner, document.toString())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                onLog("warn", "Plugin storage save failed for \"$owner\": ${e.message}")
+            }
             null
         }
         quickJs.asyncFunction<String>("__anansiFetch") { args ->

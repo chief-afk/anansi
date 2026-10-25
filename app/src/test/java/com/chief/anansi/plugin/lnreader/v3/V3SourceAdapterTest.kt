@@ -24,8 +24,8 @@ import org.junit.Test
 
 /**
  * v3 adapter fixture tests (spec: New tests items 2-5): the happy path
- * through recorded HTTP fixtures, the loud generation check, the loud
- * @libs/aes rejection, and the filter/settings storage round trip.
+ * through recorded HTTP fixtures, the loud generation check, the
+ * @libs/aes require resolving, and the filter/settings storage round trip.
  */
 class V3SourceAdapterTest {
 
@@ -178,19 +178,19 @@ class V3SourceAdapterTest {
     }
 
     @Test
-    fun libsAesFailsLoudlyNamingLibraryAndPlugin() {
+    fun libsAesRequiresSuccessfully() {
         newRuntime().use { runtime ->
             val registry = InMemorySourceErrorRegistry()
             runBlocking {
-                try {
-                    load(runtime, registry, item("fixture-aes"), resourceText(AES_DIST))
-                    fail("a dist requiring @libs/aes must be rejected")
-                } catch (e: SourcePluginException) {
-                    assertTrue(e.error is SourceError.UnsupportedFeature)
-                    assertTrue(e.message!!.contains("@libs/aes"))
-                    assertTrue(e.message!!.contains("fixture-aes"))
-                }
-                assertTrue(registry.latest("fixture-aes") is SourceError.UnsupportedFeature)
+                val source = load(runtime, registry, item("fixture-aes"), resourceText(AES_DIST))
+                assertEquals("fixture-aes", source.pluginId)
+                // popularNovels reaches the required namespace: aes.unreachable
+                // is undefined and falls back to an empty list.
+                assertTrue(
+                    source.popularNovels(1, showLatestNovels = false, filterValuesJson = null)
+                        .isEmpty(),
+                )
+                assertNull(registry.latest("fixture-aes"))
             }
         }
     }

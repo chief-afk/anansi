@@ -1,5 +1,5 @@
-// Incompatible fixture: requires the unsupported @libs/aes library, which
-// the host rejects loudly with the unsupported-feature marker.
+// Requires the @libs/aes library, which resolves to the vendored cipher
+// namespaces (chacha, salsa, aes) in the host require map.
 const aes = require("@libs/aes");
 
 exports.default = {
