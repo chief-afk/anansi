@@ -21,6 +21,7 @@ import com.chief.anansi.plugin.repo.RepoRegistrationService
 import com.chief.anansi.plugin.repo.RepoHttp
 import com.chief.anansi.plugin.runtime.FetchBridge
 import com.chief.anansi.plugin.runtime.QuickJsSourceRuntime
+import com.chief.anansi.plugin.runtime.SourceRuntimeLimits
 import com.chief.anansi.settings.SettingsStore
 import com.chief.anansi.ui.browse.SourceSessions
 import com.chief.anansi.ui.reader.ChapterTextCache
@@ -63,11 +64,13 @@ class AppContainer(context: Context) {
         .components { add(OkHttpNetworkFetcherFactory()) }
         .build()
 
-    // The app's one HTTP client: plugin fetches share it with Coil.
+    // The app's one HTTP client: plugin fetches share it with Coil. The
+    // call timeout keeps one fetch inside the runtime's engine deadline.
     val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)
+        .callTimeout(SourceRuntimeLimits.HTTP_CALL_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
         .build()
 
     val jsSourceRuntime: JsSourceRuntime = QuickJsSourceRuntime(
@@ -111,6 +114,7 @@ class AppContainer(context: Context) {
         http = RepoHttp(okHttpClient),
         client = okHttpClient,
         localLibrary = localLibrary,
+        backgroundScope = appScope,
     )
 
     // The add-OPDS-catalog flow: verifies the root feed and registers the

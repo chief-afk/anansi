@@ -18,19 +18,25 @@ import com.chief.anansi.plugin.opds.OpdsHttp
 import com.chief.anansi.plugin.opds.OpdsSource
 import com.chief.anansi.plugin.repo.RepoHttp
 import com.chief.anansi.plugin.repo.SourceGenerations
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import com.chief.anansi.plugin.runtime.SourceRuntimeLimits
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import okhttp3.OkHttpClient
 
 /**
  * Loads registered sources into live [Source] adapters for the discovery
- * screens. Every load is fresh on purpose: a load creates a new engine slot,
- * so a screen never holds a slot another screen's load has replaced, and the
- * runtime keeps each plugin's storage scope across reloads, so saved filter
- * values survive. Dist text is cached per dist url to keep reloads off the
- * network. OPDS catalogs and the Local library skip the plugin path
- * entirely: they are zero-runtime source types (OPDS reads its registered
- * catalog URL, Local reads its stored file copies).
+ * screens. Every load goes through the runtime's slot reuse: a same-dist
+ * load returns the live engine slot, so a screen never holds a slot another
+ * screen's load has closed (the runtime defers replaced slots' closes until
+ * in-flight calls finish), and the runtime keeps each plugin's storage scope
+ * across reloads, so saved filter values survive. Dist text is cached in a
+ * bounded LRU with single-flight fetches to keep reloads off the network.
+ * OPDS catalogs and the Local library skip the plugin path entirely: they
+ * are zero-runtime source types (OPDS reads its registered catalog URL,
+ * Local reads its stored file copies).
  */
 class SourceSessions(
     private val runtime: JsSourceRuntime,
@@ -38,12 +44,12 @@ class SourceSessions(
     private val http: RepoHttp,
     client: OkHttpClient,
     private val localLibrary: LocalLibrary,
+    private val backgroundScope: CoroutineScope,
 ) {
     private val opdsHttp = OpdsHttp(client)
-    private val distCache = HashMap<String, String>()
-    private val mutex = Mutex()
+    private val distCache = DistCache(backgroundScope)
 
-    /** Loads [entity]'s plugin into a fresh adapter; failures are loud. */
+    /** Loads [entity]'s plugin into a live adapter; failures are loud. */
     suspend fun load(entity: SourceEntity): Source {
         if (entity.ecosystem == SourceEcosystem.LOCAL.key) {
             return LocalSource(
@@ -82,10 +88,8 @@ class SourceSessions(
                 lang = entity.lang,
             )
         }
-        val dist = mutex.withLock {
-            distCache.getOrPut(entity.distUrl) {
-                http.getText(entity.distUrl, "Plugin \"${entity.sourceId}\" dist")
-            }
+        val dist = distCache.getOrFetch(entity.distUrl) {
+            http.getText(entity.distUrl, "Plugin \"${entity.sourceId}\" dist")
         }
         return when (entity.generation) {
             SourceGenerations.V3 -> V3PluginLoader.load(
@@ -122,6 +126,47 @@ class SourceSessions(
                 "Source \"${entity.sourceId}\" has no runtime loader for generation " +
                     "\"${entity.generation}\"",
             )
+        }
+    }
+}
+
+/**
+ * The bounded dist text cache behind [SourceSessions]: an access-order LRU
+ * capped at [SourceRuntimeLimits.DIST_CACHE_MAX_ENTRIES], plus single-flight
+ * fetches on [backgroundScope] so concurrent loads of one dist url share one
+ * network call. Failures are never cached; every awaiter of a failed fetch
+ * sees the same failure.
+ */
+internal class DistCache(private val backgroundScope: CoroutineScope) {
+
+    private val cache = object : LinkedHashMap<String, String>(0, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>): Boolean =
+            size > SourceRuntimeLimits.DIST_CACHE_MAX_ENTRIES
+    }
+    private val inFlight = ConcurrentHashMap<String, Deferred<String>>()
+
+    suspend fun getOrFetch(url: String, fetch: suspend () -> String): String {
+        synchronized(cache) { cache[url] }?.let { return it }
+        while (true) {
+            val existing = inFlight[url]
+            if (existing != null) {
+                return existing.await().also { text ->
+                    synchronized(cache) { cache[url] = text }
+                }
+            }
+            val created = backgroundScope.async(start = CoroutineStart.LAZY) { fetch() }
+            val raced = inFlight.putIfAbsent(url, created)
+            if (raced != null) {
+                created.cancel()
+                continue
+            }
+            try {
+                val text = created.await()
+                synchronized(cache) { cache[url] = text }
+                return text
+            } finally {
+                inFlight.remove(url, created)
+            }
         }
     }
 }
