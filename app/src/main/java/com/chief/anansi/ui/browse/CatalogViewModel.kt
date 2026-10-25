@@ -7,9 +7,11 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.chief.anansi.AnansiApplication
-import com.chief.anansi.data.repo.SourceRegistryRepository
+import com.chief.anansi.data.entity.SourceEntity
 import com.chief.anansi.plugin.SourceNovelItem
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -33,30 +35,93 @@ data class CatalogUiState(
 )
 
 /**
+ * One catalog page's fetch result, ready to write into state. Public only
+ * because it rides the public [CatalogPages] seam's signature; nothing
+ * outside this package and its tests should touch it.
+ */
+data class CatalogPage(
+    val filters: List<CatalogFilter>,
+    val coverHeaders: Map<String, String>,
+    val items: List<SourceNovelItem>,
+    val page: Int,
+    val endReached: Boolean,
+)
+
+/**
+ * The source IO behind the catalog's single-flight gate: one reset-or-append
+ * page load that throws on failure. The production implementation wraps
+ * `sessions.load` + `popularNovels` + `parseFilterSchema`; tests gate fakes.
+ */
+fun interface CatalogPages {
+    suspend fun load(
+        entity: SourceEntity,
+        reset: Boolean,
+        showLatest: Boolean,
+        filterValues: FilterValues,
+    ): CatalogPage
+}
+
+/** The production [CatalogPages]; the page counter advances only on success. */
+internal class SourceCatalogPages(private val sessions: SourceSessions) : CatalogPages {
+    private var lastPage = 0
+
+    override suspend fun load(
+        entity: SourceEntity,
+        reset: Boolean,
+        showLatest: Boolean,
+        filterValues: FilterValues,
+    ): CatalogPage {
+        val source = sessions.load(entity)
+        val page = if (reset) 1 else lastPage + 1
+        val items = source.popularNovels(
+            page = page,
+            showLatestNovels = showLatest,
+            filterValuesJson = filterValuesJson(filterValues),
+        )
+        lastPage = page
+        return CatalogPage(
+            filters = parseFilterSchema(source.filters),
+            coverHeaders = coverHeaders(source),
+            items = items,
+            page = page,
+            endReached = items.isEmpty(),
+        )
+    }
+}
+
+/**
  * One source's catalog: Popular/Latest listings, the source's
- * own filter schema in a sheet, and explicit load-more. Every call loads
+ * own filter schema in a sheet, and explicit load-more. Loads are
+ * single-flight: a load-more while a page fetch is running is ignored, and a
+ * reset (listing switch, filter apply) replaces the in-flight fetch so the
+ * old page's outcome never lands into the new listing. Every call loads
  * the plugin fresh through [SourceSessions]; the error box renders the
  * [com.chief.anansi.plugin.error.SourceError] the adapter boundary produced
  * and reported into the persistent registry, never a local reclassification
  *(the shared error taxonomy).
  */
 class CatalogViewModel(
-    private val sourceRegistry: SourceRegistryRepository,
-    private val sessions: SourceSessions,
     private val identity: String,
+    private val findEntity: suspend (String) -> SourceEntity?,
+    private val pages: CatalogPages,
+    scope: CoroutineScope? = null,
 ) : ViewModel() {
+
+    private val jobScope: CoroutineScope = scope ?: viewModelScope
 
     private val _state = MutableStateFlow(CatalogUiState())
     val state: StateFlow<CatalogUiState> = _state
 
-    private var entity: com.chief.anansi.data.entity.SourceEntity? = null
+    private var entity: SourceEntity? = null
 
     /** The listing reset state of the failed call, so retry repeats it. */
     private var failedReset: Boolean = true
 
+    private var loadJob: Job? = null
+
     init {
-        viewModelScope.launch {
-            val loaded = sourceRegistry.findByIdentity(identity)
+        jobScope.launch {
+            val loaded = findEntity(identity)
             if (loaded == null) {
                 _state.update { it.copy(sourceMissing = true, loading = false) }
                 return@launch
@@ -83,32 +148,34 @@ class CatalogViewModel(
     fun retry() = load(reset = failedReset)
 
     private fun load(reset: Boolean) {
+        val inFlight = loadJob
+        if (inFlight != null && inFlight.isActive) {
+            if (!reset) return
+            inFlight.cancel()
+        }
         val sourceEntity = entity ?: return
-        viewModelScope.launch {
+        loadJob = jobScope.launch {
             _state.update {
                 it.copy(loading = reset, loadingMore = !reset, failed = false)
             }
             try {
-                val source = sessions.load(sourceEntity)
-                if (reset) {
-                    _state.update {
-                        it.copy(
-                            filters = parseFilterSchema(source.filters),
-                            coverHeaders = coverHeaders(source),
-                        )
-                    }
-                }
-                val page = if (reset) 1 else _state.value.page + 1
-                val items = source.popularNovels(
-                    page = page,
-                    showLatestNovels = _state.value.showLatest,
-                    filterValuesJson = filterValuesJson(_state.value.appliedFilterValues),
+                val result = pages.load(
+                    entity = sourceEntity,
+                    reset = reset,
+                    showLatest = _state.value.showLatest,
+                    filterValues = _state.value.appliedFilterValues,
                 )
                 _state.update { current ->
                     current.copy(
-                        novels = if (reset) items else (current.novels + items).distinctBy { it.path },
-                        page = page,
-                        endReached = items.isEmpty(),
+                        filters = if (reset) result.filters else current.filters,
+                        coverHeaders = if (reset) result.coverHeaders else current.coverHeaders,
+                        novels = if (reset) {
+                            result.items
+                        } else {
+                            (current.novels + result.items).distinctBy { it.path }
+                        },
+                        page = result.page,
+                        endReached = result.endReached,
                         loading = false,
                         loadingMore = false,
                     )
@@ -135,9 +202,9 @@ class CatalogViewModel(
             initializer {
                 val container = (this[APPLICATION_KEY] as AnansiApplication).container
                 CatalogViewModel(
-                    sourceRegistry = container.sourceRegistryRepository,
-                    sessions = container.sourceSessions,
                     identity = identity,
+                    findEntity = { container.sourceRegistryRepository.findByIdentity(it) },
+                    pages = SourceCatalogPages(container.sourceSessions),
                 )
             }
         }

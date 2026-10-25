@@ -19,6 +19,15 @@ object SourceRuntimeLimits {
     /** Wall-clock deadline for one source inside a global search. */
     const val SEARCH_SOURCE_TIMEOUT_MILLIS = 45_000L
 
+    /** Sources whose search calls may be in flight at once in a fan-out. */
+    const val SEARCH_CONCURRENCY = 6
+
+    /** Quiet time after the last keystroke before search auto-runs. */
+    const val SEARCH_DEBOUNCE_MILLIS = 400L
+
+    /** Shortest query the auto-run accepts; the IME action is not throttled. */
+    const val SEARCH_MIN_QUERY_LENGTH = 2
+
     /** Cached plugin dist texts kept before least-recently-used eviction. */
     const val DIST_CACHE_MAX_ENTRIES = 24
 

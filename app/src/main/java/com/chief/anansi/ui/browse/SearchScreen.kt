@@ -27,10 +27,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,8 +45,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.chief.anansi.R
 import com.chief.anansi.plugin.SourceNovelItem
+import com.chief.anansi.plugin.runtime.SourceRuntimeLimits
 import com.chief.anansi.ui.components.EmptyState
 import com.chief.anansi.ui.components.NovelCover
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 
 /**
  * Global search: per-source result groups with explicit
@@ -53,6 +62,7 @@ import com.chief.anansi.ui.components.NovelCover
  * appbar lens reaches the same screen scoped to one source. Results route
  * to novel details.
  */
+@OptIn(FlowPreview::class)
 @Composable
 fun SearchScreen(
     scopedIdentity: String?,
@@ -67,10 +77,27 @@ fun SearchScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     var field by rememberSaveable { mutableStateOf("") }
 
+    // Auto-run: typing settles for a beat and runs. A query the ViewModel
+    // already answered (screen recreation restores the field) is skipped.
+    LaunchedEffect(Unit) {
+        snapshotFlow { field }
+            .map { it.trim() }
+            .filter {
+                it.length >= SourceRuntimeLimits.SEARCH_MIN_QUERY_LENGTH && it != state.query
+            }
+            .distinctUntilChanged()
+            .debounce(SourceRuntimeLimits.SEARCH_DEBOUNCE_MILLIS)
+            .collectLatest { viewModel.search(it) }
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
         SearchHeader(
             title = state.scopedSourceName.ifEmpty { stringResource(R.string.screen_search) },
-            searching = state.searching,
+            searching = state.groups.any { it.status == SearchGroupStatus.Searching },
+            done = state.groups.count {
+                it.status == SearchGroupStatus.Done || it.status == SearchGroupStatus.Failed
+            },
+            total = state.groups.size,
             onBack = onBack,
         )
         OutlinedTextField(
@@ -137,6 +164,8 @@ fun SearchScreen(
 private fun SearchHeader(
     title: String,
     searching: Boolean,
+    done: Int,
+    total: Int,
     onBack: () -> Unit,
 ) {
     Row(
@@ -160,10 +189,26 @@ private fun SearchHeader(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        if (searching) {
-            Spacer(Modifier.width(8.dp))
-            CircularProgressIndicator(modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(16.dp))
+        when {
+            searching -> {
+                Text(
+                    text = stringResource(R.string.search_progress_counts, done, total),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(8.dp))
+                CircularProgressIndicator(modifier = Modifier.size(22.dp))
+                Spacer(Modifier.width(16.dp))
+            }
+
+            total > 0 && done == total -> {
+                Text(
+                    text = stringResource(R.string.search_progress_complete, done, total),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.width(16.dp))
+            }
         }
     }
 }

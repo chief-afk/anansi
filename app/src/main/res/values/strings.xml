@@ -145,6 +145,8 @@
     <string name="search_group_searching_source">%1$s · searching</string>
     <string name="search_group_searching">Searching…</string>
     <string name="search_no_results_body">Nothing matched on this source.</string>
+    <string name="search_progress_counts">%1$d of %2$d</string>
+    <string name="search_progress_complete">%1$d of %2$d sources answered</string>
     <string name="catalog_chip_popular">Popular</string>
     <string name="catalog_chip_latest">Latest</string>
     <string name="catalog_load_more">Load more</string>
