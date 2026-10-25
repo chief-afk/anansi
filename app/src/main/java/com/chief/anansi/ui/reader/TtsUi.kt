@@ -437,6 +437,12 @@ private fun TtsFailureBanner(kind: String, reason: String, onRetry: () -> Unit) 
                 color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            Text(
+                text = stringResource(R.string.manage_error_posture),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.padding(top = 4.dp),
+            )
             TextButton(
                 onClick = onRetry,
                 colors = ButtonDefaults.textButtonColors(

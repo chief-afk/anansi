@@ -26,7 +26,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -409,10 +411,17 @@ class QuickJsSourceRuntime(
                 if (kind != JsErrorKind.Other) {
                     throw SourcePluginException(SourceError.UnsupportedFeature(reason))
                 }
-                throw JsPluginCallException(message)
+                throw JsPluginCallException(
+                    message = message,
+                    origin = envelope.stringField("origin"),
+                    errorName = envelope.stringField("name"),
+                )
             }
             return envelope.getValue("ok").jsonPrimitive.content
         }
+
+        private fun JsonObject.stringField(name: String): String =
+            (this[name] as? JsonPrimitive)?.takeIf { it !is JsonNull }?.content ?: ""
     }
 
     private companion object {

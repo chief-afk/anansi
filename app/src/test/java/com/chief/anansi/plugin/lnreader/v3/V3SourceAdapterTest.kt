@@ -16,6 +16,7 @@ import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -289,12 +290,14 @@ class V3SourceAdapterTest {
                 val source = load(runtime, registry, goodItem(), resourceText(GOOD_DIST))
                 try {
                     // Page 2 of the catalog has no recorded fixture, so the
-                    // fetch fails and the adapter must classify it as network.
+                    // fetch fails and the adapter must classify it as network,
+                    // with the humanized site name instead of the raw URL.
                     source.popularNovels(2, false, null)
                     fail("an unrecorded page must fail loudly")
                 } catch (e: SourcePluginException) {
                     assertTrue(e.error is SourceError.Network)
-                    assertTrue(e.message!!.contains("Fetch failed for"))
+                    assertTrue(e.message!!.contains("novelfull.com"))
+                    assertFalse(e.message!!.contains("http"))
                 }
                 assertTrue(registry.latest("fixture-v3") is SourceError.Network)
                 source.close()

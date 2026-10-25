@@ -109,6 +109,10 @@
     <string name="manage_permission_note">Capabilities are declared by the source type and engine, never silently granted.</string>
     <string name="manage_error_label">LAST ERROR</string>
     <string name="manage_error_posture">Sources rot; it is not your fault. Plugin fixes arrive through repository updates, not app updates.</string>
+    <plurals name="manage_error_age_days">
+        <item quantity="one">Last failed %1$d day ago</item>
+        <item quantity="other">Last failed %1$d days ago</item>
+    </plurals>
     <string name="manage_remove">Remove source</string>
     <string name="manage_remove_confirm_title">Remove source?</string>
     <string name="manage_remove_confirm_body">%1$s will be removed from Browse.</string>

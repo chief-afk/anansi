@@ -51,8 +51,16 @@ interface JsPlugin {
     suspend fun close()
 }
 
-/** A plugin call failed with an unclassified JS-side error. */
+/**
+ * A plugin call failed with an unclassified JS-side error. [origin] and
+ * [errorName] carry the plugin-call envelope's structured origin evidence
+ * (fetch-bridge versus plugin-thrown, and the JS error class name) for the
+ * adapter classifier; both default empty so existing constructors keep
+ * working.
+ */
 class JsPluginCallException(
     message: String,
     cause: Throwable? = null,
+    val origin: String = "",
+    val errorName: String = "",
 ) : RuntimeException(message, cause)

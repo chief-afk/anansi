@@ -70,9 +70,11 @@ data class NovelDetailsUiState(
     val refreshing: Boolean = false,
     /**
      * The failed refresh's reason for the snackbar; null means the last
-     * refresh succeeded or none ran yet.
+     * refresh succeeded or none ran yet. The kind rides alongside so the
+     * snackbar can show "kind: reason" when a kind exists.
      */
     val refreshFailure: String? = null,
+    val refreshFailureKind: String? = null,
     /** The last refresh made no source call: this novel's source is disabled. */
     val refreshSkipped: Boolean = false,
     /** The novel belongs to the fixed local library (imported files). */
@@ -186,17 +188,22 @@ class NovelDetailsViewModel(
      */
     fun openChapter(chapter: ChapterRow, onReady: (ChapterRow) -> Unit) {
         val sourceIdentity = entity?.identity ?: return
-        viewModelScope.launch {
-            try {
-                libraryRepository.ensureSourceNovelRows(sourceIdentity, novelPath)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _state.update { it.copy(refreshFailure = e.message ?: "unknown failure") }
-                return@launch
+    viewModelScope.launch {
+        try {
+            libraryRepository.ensureSourceNovelRows(sourceIdentity, novelPath)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            _state.update {
+                it.copy(
+                    refreshFailure = e.message ?: "unknown failure",
+                    refreshFailureKind = failureKindOf(e),
+                )
             }
-            onReady(chapter)
+            return@launch
         }
+        onReady(chapter)
+    }
     }
 
     fun applySheetOptions(sort: ChapterSort, showUnread: Boolean, showRead: Boolean) {
@@ -221,15 +228,22 @@ class NovelDetailsViewModel(
     fun refreshFromSource() {
         val loaded = entity ?: return
         if (_state.value.refreshing || _state.value.loading) return
-        _state.update { it.copy(refreshing = true, refreshFailure = null, refreshSkipped = false) }
+        _state.update {
+            it.copy(refreshing = true, refreshFailure = null, refreshFailureKind = null, refreshSkipped = false)
+        }
         viewModelScope.launch {
             val rowId = _state.value.libraryRowId
             var failure: String? = null
+            var failureKind: String? = null
             var skipped = false
             try {
                 if (rowId != null) {
                     when (val result = updateRepository.checkNovel(rowId)) {
-                        is NovelCheckResult.Failed -> failure = result.reason
+                        is NovelCheckResult.Failed -> {
+                            failure = result.reason
+                            failureKind = result.failureKind
+                        }
+
                         is NovelCheckResult.Skipped -> skipped = true
                         is NovelCheckResult.Checked -> Unit
                     }
@@ -242,14 +256,22 @@ class NovelDetailsViewModel(
                 throw e
             } catch (e: Exception) {
                 failure = e.message ?: "unknown failure"
+                failureKind = failureKindOf(e)
             }
-            _state.update { it.copy(refreshing = false, refreshFailure = failure, refreshSkipped = skipped) }
+            _state.update {
+                it.copy(
+                    refreshing = false,
+                    refreshFailure = failure,
+                    refreshFailureKind = failureKind,
+                    refreshSkipped = skipped,
+                )
+            }
         }
     }
 
     /** The screen surfaces the failure once, then acknowledges it. */
     fun refreshFailureShown() {
-        _state.update { it.copy(refreshFailure = null, refreshSkipped = false) }
+        _state.update { it.copy(refreshFailure = null, refreshFailureKind = null, refreshSkipped = false) }
     }
 
     private suspend fun loadDetails(loaded: SourceEntity) {

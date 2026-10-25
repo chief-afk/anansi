@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** A recorded error line for the management surfaces; display-only. */
-data class SourceErrorDisplay(val kind: String, val reason: String)
+data class SourceErrorDisplay(val kind: String, val reason: String, val updatedAt: Long)
 
 data class BrowseSourceRow(
     val identity: String,
@@ -47,7 +47,7 @@ class BrowseViewModel(
         errorDao.observeAll(),
     ) { sources, errors ->
         val errorBySourceId = errors.associate {
-            it.sourceId to SourceErrorDisplay(it.kind, it.reason)
+            it.sourceId to SourceErrorDisplay(it.kind, it.reason, it.updatedAt)
         }
         // The fixed Local pseudo-source has its own fixed entry above the
         // list; its registered row would only duplicate that entry here.

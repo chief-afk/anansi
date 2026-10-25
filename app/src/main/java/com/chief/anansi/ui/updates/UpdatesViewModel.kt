@@ -21,12 +21,13 @@ import kotlinx.coroutines.launch
  * One Updates-tab row's rendered state: the persisted check result (the
  * new-arrival aggregate and checked time) overlaid with the run-scoped
  * pieces that only live in memory - the in-flight spinner and the latest
- * failure reason, which the schema's three columns cannot hold.
+ * failure kind and reason, which the schema's three columns cannot hold.
  */
 data class UpdateRowUi(
     val row: UpdateRow,
     val checking: Boolean = false,
     val failureReason: String? = null,
+    val failureKind: String? = null,
 )
 
 data class UpdatesUiState(
@@ -72,6 +73,7 @@ class UpdatesViewModel(
                             row = known,
                             checking = existing?.checking == true,
                             failureReason = existing?.failureReason,
+                            failureKind = existing?.failureKind,
                         )
                     }
                     current.copy(rows = uiRows)
@@ -91,7 +93,7 @@ class UpdatesViewModel(
                         _state.update { current ->
                             current.copy(rows = current.rows?.map {
                                 if (it.row.novel.id == novelId) {
-                                    it.copy(checking = true, failureReason = null)
+                                    it.copy(checking = true, failureReason = null, failureKind = null)
                                 } else {
                                     it
                                 }
@@ -103,10 +105,14 @@ class UpdatesViewModel(
                             current.copy(rows = current.rows?.map {
                                 if (it.row.novel.id == checkResult.novelId) {
                                     when (checkResult) {
-                                        is NovelCheckResult.Failed ->
-                                            it.copy(checking = false, failureReason = checkResult.reason)
+                                        is NovelCheckResult.Failed -> it.copy(
+                                            checking = false,
+                                            failureReason = checkResult.reason,
+                                            failureKind = checkResult.failureKind,
+                                        )
 
-                                        else -> it.copy(checking = false, failureReason = null)
+                                        else ->
+                                            it.copy(checking = false, failureReason = null, failureKind = null)
                                     }
                                 } else {
                                     it

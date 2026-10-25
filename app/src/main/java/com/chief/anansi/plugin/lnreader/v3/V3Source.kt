@@ -279,19 +279,118 @@ class V3Source internal constructor(
 }
 
 /**
- * Adapter-boundary classification of an unclassified plugin-call failure:
- * transport failures the fetch bridge reported stay [SourceError.Network];
- * everything else means the site answered but its content could not be
- * interpreted, so it is [SourceError.Parse]. The visible reason is kept.
+ * Adapter-boundary classification of an unclassified plugin-call failure,
+ * around the envelope's structured origin, the JS error name, and the
+ * message:
+ *
+ * - A fetch-bridge rejection is a transport failure, so [SourceError.Network]
+ *   with the site host and a plain reason: every raw URL in the transport
+ *   message collapses to its host (scheme, path, and query dropped), because
+ *   raw URLs never reach a render site. The one app-authored refusal inside
+ *   the fetch bridge, a private-range block, passes through verbatim as
+ *   [SourceError.Blocked]: it is final app-owned copy, not upstream text.
+ * - Plugin-thrown reachability failures carrying a "Could not reach site
+ *   (NNN)" status are Network, except 403, which is a block. Any message
+ *   with challenge or anti-bot wording is a block too: both map to
+ *   [SourceError.Blocked] with fixed copy that never offers or hints at a
+ *   bypass.
+ * - The unsupported-feature marker is authoritative and keeps its
+ *   [SourceError.UnsupportedFeature] mapping (runtime paths throw it as a
+ *   [SourcePluginException] before this classifier; the branch here is the
+ *   defensive pass-through for the envelope path).
+ * - Everything else plugin-thrown is a content-shape failure,
+ *   [SourceError.Parse].
+ *
+ * This is the only function in the codebase that matches on error message
+ * text; render sites display kinds and never reclassify.
  */
 internal fun classifyCallFailure(e: JsPluginCallException): SourceError {
     val message = e.message ?: "unknown plugin failure"
-    return if (message.startsWith("Fetch failed for ") || message.startsWith("Unsupported fetch URL: ")) {
-        SourceError.Network(message)
-    } else {
-        SourceError.Parse(message)
+    if (e.origin == ORIGIN_FETCH_BRIDGE) {
+        if (message.startsWith(BLOCKED_TARGET_PREFIX)) {
+            return SourceError.Blocked(message)
+        }
+        return SourceError.Network(humanizeFetchFailure(message))
+    }
+    if (message.startsWith(UNSUPPORTED_FEATURE_MARKER)) {
+        return SourceError.UnsupportedFeature(
+            message.removePrefix(UNSUPPORTED_FEATURE_MARKER).trim(),
+        )
+    }
+    if (message.startsWith(COULD_NOT_REACH_PREFIX)) {
+        val status = message.substringAfter(COULD_NOT_REACH_PREFIX).substringBefore(')').trim()
+        return if (status == BLOCKED_STATUS) {
+            SourceError.Blocked(BLOCKED_POSTURE_COPY)
+        } else {
+            SourceError.Network(message)
+        }
+    }
+    if (CHALLENGE_PATTERNS.any { message.contains(it, ignoreCase = true) }) {
+        return SourceError.Blocked(BLOCKED_POSTURE_COPY)
+    }
+    return SourceError.Parse(message)
+}
+
+/**
+ * Rewrites a fetch-bridge transport message for display: every raw URL
+ * collapses to its site host, the remainder keeps the plain reason, and a
+ * terse timeout reads as the friendlier "did not respond in time". Messages
+ * without a URL keep the instruction-stripped text, with a generic wording
+ * only when nothing usable remains.
+ */
+internal fun humanizeFetchFailure(message: String): String {
+    val first = URL_IN_MESSAGE.find(message)
+    if (first == null) {
+        return stripUpstreamInstructions(message).ifBlank { GENERIC_FETCH_FAILURE }
+    }
+    val host = hostOf(first.value)
+    if (host == null) {
+        val withoutUrls = URL_IN_MESSAGE.replace(message) { m -> hostOf(m.value).orEmpty() }
+        return stripUpstreamInstructions(withoutUrls).ifBlank { GENERIC_FETCH_FAILURE }
+    }
+    val tail = message.substring(first.range.last + 1)
+    val reason = plainReason(URL_IN_MESSAGE.replace(tail) { m -> hostOf(m.value).orEmpty() })
+    return "$host $reason"
+}
+
+private fun plainReason(raw: String): String {
+    val text = raw.trimStart(':', ' ', '\n', '\t').trim()
+    return when {
+        text.isEmpty() -> "did not respond"
+        text.equals("timeout", ignoreCase = true) || text.contains("timed out", ignoreCase = true) ->
+            "did not respond in time"
+
+        else -> text
     }
 }
+
+/** The site host of a raw URL string: scheme, port, path, and query dropped. */
+private fun hostOf(rawUrl: String): String? {
+    val cleaned = rawUrl.trimEnd(':', ',', ')', '.', ';', '!', '?')
+    val withoutScheme = cleaned.substringAfter("://", "")
+    if (withoutScheme.isEmpty()) return null
+    val host = withoutScheme.substringBefore('/').substringBefore('?').substringBefore('#')
+    return host.substringBeforeLast(':').takeIf { it.isNotBlank() }?.lowercase()
+}
+
+private fun stripUpstreamInstructions(message: String): String =
+    CHALLENGE_PATTERNS.fold(message) { text, pattern -> text.replace(pattern, "", ignoreCase = true) }
+        .trim()
+
+private val URL_IN_MESSAGE = Regex("""[A-Za-z][A-Za-z0-9+.-]*://\S+""")
+
+private const val ORIGIN_FETCH_BRIDGE = "fetch-bridge"
+private const val BLOCKED_TARGET_PREFIX = "Blocked fetch target:"
+private const val COULD_NOT_REACH_PREFIX = "Could not reach site ("
+private const val UNSUPPORTED_FEATURE_MARKER = "anansi/unsupported-feature:"
+private const val BLOCKED_STATUS = "403"
+
+private const val BLOCKED_POSTURE_COPY =
+    "This source needs a browser check Anansi can't run. It stays broken until the plugin adapts."
+
+private const val GENERIC_FETCH_FAILURE = "the source did not respond"
+
+private val CHALLENGE_PATTERNS = listOf("captcha", "cloudflare", "challenge", "webview")
 
 /** The plugin status vocabulary v3 statuses normalize onto. */
 private val STATUS_VOCABULARY = listOf(

@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -137,6 +138,12 @@ fun SourceManageScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer,
                     )
+                    val ageDays = remember(error.updatedAt) { errorAgeDays(error.updatedAt) }
+                    Text(
+                        text = pluralStringResource(R.plurals.manage_error_age_days, ageDays, ageDays),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
                 }
                 Text(
                     text = stringResource(R.string.manage_error_posture),
@@ -195,6 +202,14 @@ fun SourceManageScreen(
         )
     }
 }
+
+/** Whole days since the recorded error, rounding any partial day up to 1. */
+private fun errorAgeDays(updatedAt: Long): Int {
+    val elapsed = System.currentTimeMillis() - updatedAt
+    return ((elapsed + DAY_MILLIS - 1) / DAY_MILLIS).toInt().coerceAtLeast(1)
+}
+
+private const val DAY_MILLIS = 24 * 60 * 60 * 1000L
 
 @Composable
 private fun ToggleRow(

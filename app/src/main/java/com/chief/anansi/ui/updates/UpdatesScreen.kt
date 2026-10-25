@@ -267,7 +267,10 @@ private fun UpdateItem(
 /** The row's check outcome: the failure, the arrivals, caught up, or never checked. */
 @Composable
 private fun statusLine(ui: UpdateRowUi): String {
-    ui.failureReason?.let { return it }
+    ui.failureReason?.let { reason ->
+        val kind = ui.failureKind
+        return if (kind.isNullOrEmpty()) reason else "$kind: $reason"
+    }
     return when {
         ui.row.novel.lastCheckedAtEpochMs == 0L -> stringResource(R.string.updates_row_not_checked)
         ui.row.newCount > 0 -> pluralStringResource(

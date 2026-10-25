@@ -20,6 +20,7 @@ import com.chief.anansi.plugin.repo.RepoHttp
 import com.chief.anansi.plugin.repo.SourceGenerations
 import com.chief.anansi.plugin.runtime.SourceRuntimeLimits
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
@@ -75,8 +76,10 @@ class SourceSessions(
             throw SourcePluginException(error)
         }
         if (entity.ecosystem == SourceEcosystem.OPDS.key) {
-            require(entity.distUrl.isNotEmpty()) {
-                "Source \"${entity.sourceId}\" has no catalog URL registered"
+            if (entity.distUrl.isEmpty()) {
+                throw SourcePluginException(
+                    SourceError.SourceMissing("Source \"${entity.sourceId}\" has no catalog URL registered"),
+                )
             }
             return OpdsSource(
                 catalogUrl = entity.distUrl,
@@ -88,8 +91,23 @@ class SourceSessions(
                 lang = entity.lang,
             )
         }
-        val dist = distCache.getOrFetch(entity.distUrl) {
-            http.getText(entity.distUrl, "Plugin \"${entity.sourceId}\" dist")
+        val dist = try {
+            distCache.getOrFetch(entity.distUrl) {
+                http.getText(entity.distUrl, "Plugin \"${entity.sourceId}\" dist")
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // A dist the runtime can never receive is the source's load
+            // failure; record it under the source so Browse and Manage see
+            // why the source never came up.
+            errorRegistry.report(
+                entity.sourceId,
+                SourceError.Network(
+                    "Plugin \"${entity.sourceId}\" dist fetch failed: ${e.message ?: "unknown failure"}",
+                ),
+            )
+            throw e
         }
         return when (entity.generation) {
             SourceGenerations.V3 -> V3PluginLoader.load(

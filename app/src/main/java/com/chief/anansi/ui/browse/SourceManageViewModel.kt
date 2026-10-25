@@ -47,7 +47,7 @@ class SourceManageViewModel(
                 errorDao.observe(entity.sourceId).map { recorded ->
                     SourceManageUiState(
                         source = entity,
-                        error = recorded?.let { SourceErrorDisplay(it.kind, it.reason) },
+                        error = recorded?.let { SourceErrorDisplay(it.kind, it.reason, it.updatedAt) },
                         permissions = SourcePermissions.resolve(entity.ecosystem),
                     )
                 }

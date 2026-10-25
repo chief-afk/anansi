@@ -365,6 +365,12 @@ private fun InlineError(kind: String, reason: String, onRetry: () -> Unit) {
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            Text(
+                text = stringResource(R.string.manage_error_posture),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
         TextButton(onClick = onRetry) {
             Text(stringResource(R.string.action_retry))

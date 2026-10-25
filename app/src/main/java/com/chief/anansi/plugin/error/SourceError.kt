@@ -7,29 +7,72 @@ package com.chief.anansi.plugin.error
  * into a per-source registry; UI surfaces display them and never
  * reclassify.
  */
+/**
+ * The kind vocabulary behind [SourceError]: the enum names equal the
+ * variants' simple names, so persisted rows (which store the name) keep
+ * loading without a migration. The persistent registry's round trip is an
+ * exhaustive `when` over this enum, so a future variant cannot ship without
+ * its stored-kind mapping.
+ */
+enum class SourceErrorKind {
+    Network,
+    Parse,
+    Incompatible,
+    RequiresJs,
+    UnsupportedFeature,
+    SourceMissing,
+    Blocked,
+}
+
 sealed class SourceError(val reason: String) {
 
+    abstract val kind: SourceErrorKind
+
     /** The site or repository could not be reached or answered unusably. */
-    class Network(reason: String) : SourceError(reason)
+    class Network(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.Network
+    }
 
     /** The site answered, but its content could not be interpreted. */
-    class Parse(reason: String) : SourceError(reason)
+    class Parse(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.Parse
+    }
 
     /** The source is not a plugin this app can run (wrong contract or generation). */
-    class Incompatible(reason: String) : SourceError(reason)
+    class Incompatible(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.Incompatible
+    }
 
     /** The source needs JavaScript beyond what the bundled host supports. */
-    class RequiresJs(reason: String) : SourceError(reason)
+    class RequiresJs(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.RequiresJs
+    }
 
     /** The source uses a feature this host deliberately does not provide. */
-    class UnsupportedFeature(reason: String) : SourceError(reason)
+    class UnsupportedFeature(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.UnsupportedFeature
+    }
 
     /**
      * The source's plugin is not installed: the row is a v1 backup import's
      * needs-source placeholder, and the reason names the plugin id a
      * repository must carry to link the novel.
      */
-    class SourceMissing(reason: String) : SourceError(reason)
+    class SourceMissing(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.SourceMissing
+    }
+
+    /**
+     * The source is deliberately unreachable from here: either the fetch
+     * target resolved to a private or local address the app refuses to
+     * contact, or the site demands a browser-side check (a challenge, a
+     * webview gate) this app will never run. The reason never offers or
+     * hints at a bypass; the fix is a plugin adaptation, arrived at through
+     * repository updates.
+     */
+    class Blocked(reason: String) : SourceError(reason) {
+        override val kind = SourceErrorKind.Blocked
+    }
 }
 
 /**

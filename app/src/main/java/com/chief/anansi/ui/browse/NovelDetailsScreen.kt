@@ -89,10 +89,16 @@ fun NovelDetailsScreen(
         showTtsDrawer = true
     }
     // A failed or skipped refresh surfaces once as a snackbar; the screen
-    // keeps its loaded content either way.
+    // keeps its loaded content either way. A known kind leads the message.
     val snackbarHostState = remember { SnackbarHostState() }
     val refreshMessage = when {
-        state.refreshFailure != null -> state.refreshFailure
+        state.refreshFailure != null -> when {
+            !state.refreshFailureKind.isNullOrEmpty() ->
+                "${state.refreshFailureKind}: ${state.refreshFailure}"
+
+            else -> state.refreshFailure
+        }
+
         state.refreshSkipped -> stringResource(R.string.details_refresh_skipped)
         else -> null
     }

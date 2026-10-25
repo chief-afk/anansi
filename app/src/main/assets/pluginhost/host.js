@@ -558,7 +558,11 @@
         throw new Error("fetch envelope id mismatch: " + envelope.id + " != " + request.id);
       }
       if (envelope.err) {
-        throw new Error(envelope.err);
+        var fetchError = new Error(envelope.err);
+        // Origin evidence for the Kotlin classifier. Non-enumerable so
+        // plugin code cannot read it through property iteration.
+        Object.defineProperty(fetchError, "anansiFetchBridge", { value: true });
+        throw fetchError;
       }
       return makeResponse(envelope);
     });
@@ -783,7 +787,9 @@
   // rides in the envelope and in the result callback, so each envelope is
   // routed to its own caller and concurrent calls cannot receive each
   // other's results. The envelope keeps the two failure classes
-  // distinguishable at the Kotlin boundary.
+  // distinguishable at the Kotlin boundary: `origin` separates fetch-bridge
+  // rejections from plugin-thrown errors, and `name` carries the JS error
+  // class name as secondary evidence for the classifier.
   global.__anansiCallPluginAsync = function (callId, pluginId, method, argsJson) {
     return global
       .__anansiCallPlugin(pluginId, method, argsJson)
@@ -792,7 +798,12 @@
       })
       .catch(function (e) {
         var message = e && e.message ? e.message : String(e);
-        return JSON.stringify({ id: callId, failed: message });
+        return JSON.stringify({
+          id: callId,
+          failed: message,
+          name: e && e.name ? e.name : "",
+          origin: e && e.anansiFetchBridge ? "fetch-bridge" : "plugin-thrown",
+        });
       });
   };
 

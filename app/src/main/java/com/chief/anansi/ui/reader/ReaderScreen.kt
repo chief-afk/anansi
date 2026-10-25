@@ -619,6 +619,12 @@ private fun ErrorBanner(failure: ReaderFailure, theme: ReaderTheme, onRetry: () 
                 color = theme.muted,
                 modifier = Modifier.padding(top = 2.dp),
             )
+            Text(
+                text = stringResource(R.string.manage_error_posture),
+                style = MaterialTheme.typography.bodySmall,
+                color = theme.muted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
             TextButton(
                 onClick = onRetry,
                 colors = ButtonDefaults.textButtonColors(contentColor = theme.onBackground),
@@ -670,6 +676,13 @@ private fun ReaderErrorState(failure: ReaderFailure, theme: ReaderTheme, onRetry
             color = theme.muted,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 2.dp),
+        )
+        Text(
+            text = stringResource(R.string.manage_error_posture),
+            style = MaterialTheme.typography.bodySmall,
+            color = theme.muted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
         )
         Button(onClick = onRetry, modifier = Modifier.padding(top = 16.dp)) {
             Icon(
