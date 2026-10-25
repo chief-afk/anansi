@@ -274,9 +274,28 @@ class V3SourceAdapterTest {
                     fail("an all-empty parseNovel result must fail loudly")
                 } catch (e: SourcePluginException) {
                     assertTrue(e.error is SourceError.Parse)
-                    assertTrue(e.message!!.contains("returned no name and no chapters"))
+                    assertTrue(e.message!!.contains("returned no chapters and no usable metadata"))
                 }
                 assertTrue(registry.latest("fixture-empty-details") is SourceError.Parse)
+                source.close()
+            }
+        }
+    }
+
+    @Test
+    fun nameOnlyEmptyDetailsFailLoudlyAsParse() {
+        newRuntime().use { runtime ->
+            val registry = InMemorySourceErrorRegistry()
+            runBlocking {
+                val source = load(runtime, registry, item("fixture-name-only-details"), NAME_ONLY_DETAILS_DIST)
+                try {
+                    source.novelDetails("some-novel")
+                    fail("a chapterless parseNovel result with no author or genres must fail loudly")
+                } catch (e: SourcePluginException) {
+                    assertTrue(e.error is SourceError.Parse)
+                    assertTrue(e.message!!.contains("returned no chapters and no usable metadata"))
+                }
+                assertTrue(registry.latest("fixture-name-only-details") is SourceError.Parse)
                 source.close()
             }
         }
@@ -328,7 +347,7 @@ class V3SourceAdapterTest {
                 } else if (novelPath.indexOf("canonical") >= 0) {
                   status = "publishing finished";
                 }
-                return { name: "N", path: novelPath, chapters: [], status: status };
+                return { name: "N", path: novelPath, chapters: [], status: status, author: "A" };
               },
               parseChapter: async function () { return "text"; },
               searchNovels: async function () { return []; },
@@ -345,6 +364,22 @@ class V3SourceAdapterTest {
               popularNovels: async function () { return []; },
               parseNovel: async function (novelPath) {
                 return { path: novelPath, chapters: [] };
+              },
+              parseChapter: async function () { return "text"; },
+              searchNovels: async function () { return []; },
+            };
+        """.trimIndent()
+
+        val NAME_ONLY_DETAILS_DIST = """
+            exports.default = {
+              id: "fixture-name-only-details",
+              name: "Name-Only Details Fixture",
+              site: "https://fixture.invalid/",
+              lang: "en",
+              version: "1.0.0",
+              popularNovels: async function () { return []; },
+              parseNovel: async function (novelPath) {
+                return { name: "Stub", path: novelPath, summary: "This project is not available.", chapters: [] };
               },
               parseChapter: async function () { return "text"; },
               searchNovels: async function () { return []; },

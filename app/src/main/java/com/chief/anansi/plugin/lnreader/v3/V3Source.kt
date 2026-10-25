@@ -193,18 +193,24 @@ class V3Source internal constructor(
             else -> throw parseFailure("Plugin \"$pluginId\" chapters is not a list")
         }
         val name = optionalString(novel, "name")
-        // An all-empty result is a plugin failure, not a nameless novel with
-        // no chapters; it fails loudly like an empty chapter does.
-        if (name.isNullOrBlank() && chapters.isEmpty()) {
-            throw parseFailure("Plugin \"$pluginId\" parseNovel returned no name and no chapters")
+        val summary = textish(novel, "summary")
+        val author = textish(novel, "author")
+        val genres = textish(novel, "genres")
+        // A parse that yields no chapters and no author or genres is plugin
+        // rot (a stubbed, licensed-away, or restructured page; summary holds
+        // notice text at best), not a readable novel; it fails loudly instead
+        // of rendering "Unknown · 0 chapters".
+        val noIdentity = author.isNullOrBlank() && genres.isNullOrBlank()
+        if (chapters.isEmpty() && (name.isNullOrBlank() || noIdentity)) {
+            throw parseFailure("Plugin \"$pluginId\" parseNovel returned no chapters and no usable metadata")
         }
         return SourceNovel(
             path = path,
             name = name,
             cover = optionalString(novel, "cover"),
-            genres = textish(novel, "genres"),
-            summary = textish(novel, "summary"),
-            author = textish(novel, "author"),
+            genres = genres,
+            summary = summary,
+            author = author,
             artist = textish(novel, "artist"),
             status = normalizeStatus(novel["status"]),
             totalPages = (novel["totalPages"] as? JsonPrimitive)
