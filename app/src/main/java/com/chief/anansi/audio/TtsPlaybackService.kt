@@ -35,6 +35,7 @@ import com.chief.anansi.data.repo.HistoryRepository
 import com.chief.anansi.data.repo.LibraryRepository
 import com.chief.anansi.data.repo.SourceRegistryRepository
 import com.chief.anansi.plugin.Source
+import com.chief.anansi.plugin.error.SourceErrorKind
 import com.chief.anansi.ui.browse.SourceSessions
 import com.chief.anansi.ui.browse.failureKindOf
 import com.chief.anansi.ui.reader.ChapterTextCache
@@ -96,11 +97,13 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
     private var engineBroken = false
     private var failure: TtsFailure? = null
     private var failedChapterIndex = -1
+    // Monotonic stamp of the newest loadChapter: its handler posts compare
+    // generations so a slow older fetch cannot overwrite a newer chapter.
+    private var chapterGeneration = 0
     /** Where the initial start resumes: percent maps to a sentence once the
      * chapter's layout exists (percent derives from sentence position). */
     private var resumeChapterRowId: Long = -1
     private var resumePercent = 0
-    private var preservedScrollOffset = 0L
     private var pendingAnnounce = false
     private var currentSettings = TtsSettings()
     private var lastProgressWriteAt = 0L
@@ -322,7 +325,12 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
     }
 
     override fun retryFetch() {
-        if (failedChapterIndex >= 0) loadChapter(failedChapterIndex, play = wantPlaying)
+        when {
+            failedChapterIndex >= 0 -> loadChapter(failedChapterIndex, play = wantPlaying)
+            // A failure with no failed chapter is a failed start: re-run the
+            // whole queue, resuming from the stored progress.
+            failure != null -> serviceScope.launch { beginQueue(identity, novelPath, null) }
+        }
     }
 
     override fun stopFromUser() {
@@ -395,11 +403,12 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         identity = newIdentity
         novelPath = newNovelPath
 
-        val sourceEntity = sourceRegistry.findByIdentity(identity) ?: return abortQueue()
+        val sourceEntity = sourceRegistry.findByIdentity(identity)
+            ?: return abortQueue(unregisteredSource())
         val loadedSource = try {
             sessions.load(sourceEntity)
-        } catch (_: Exception) {
-            return abortQueue()
+        } catch (e: Exception) {
+            return abortQueue(TtsFailure(failureKindOf(e), e.message ?: "unknown failure"))
         }
         source = loadedSource
         // The queue's rows are created lazily, so Listen works before the
@@ -407,18 +416,26 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         // failure aborts instead of crashing the service.
         val loadedNovel = try {
             libraryRepository.ensureSourceNovelRows(identity, novelPath)
-        } catch (_: Exception) {
-            return abortQueue()
-        } ?: return abortQueue()
+        } catch (e: Exception) {
+            return abortQueue(TtsFailure(failureKindOf(e), e.message ?: "unknown failure"))
+        } ?: return abortQueue(unregisteredSource())
         novel = loadedNovel
-        val shelf = libraryRepository.novelWithProgress(loadedNovel.id) ?: return abortQueue()
+        // Unreachable since ensureSourceNovelRows: the rows always exist by
+        // playback time, so this abort cannot tell the user anything.
+        val shelf = libraryRepository.novelWithProgress(loadedNovel.id) ?: return abortQueue(null)
         // The @Relation list carries no ORDER BY; the
         // queue must sort by source order itself.
         chapters = shelf.chapters.sortedBy { it.sortOrder }
-        if (chapters.isEmpty()) return abortQueue()
+        if (chapters.isEmpty()) {
+            return abortQueue(
+                TtsFailure(
+                    kind = SourceErrorKind.Parse.name,
+                    reason = "The source returned no chapters",
+                ),
+            )
+        }
 
         val progress = shelf.progress.firstOrNull()
-        preservedScrollOffset = progress?.scrollOffset ?: 0L
         val startIndex = when {
             chapterPath != null -> chapters.indexOfFirst { it.chapterUrl == chapterPath }
                 .takeIf { it >= 0 } ?: 0
@@ -436,15 +453,29 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         loadChapter(startIndex, play = true)
     }
 
-    private fun abortQueue() {
+    /**
+     * Ends a failed start: teardown first, then the reason into the failure
+     * slot (stopPlayback clears it) and a publish so the open drawer's
+     * banner shows it; null keeps the teardown silent.
+     */
+    private fun abortQueue(failure: TtsFailure?) {
         stopPlayback(writeHistory = false)
+        if (failure == null) return
+        this.failure = failure
+        publishState()
     }
+
+    private fun unregisteredSource(): TtsFailure = TtsFailure(
+        kind = SourceErrorKind.SourceMissing.name,
+        reason = "Source \"$identity\" is not registered",
+    )
 
     private fun loadChapter(index: Int, play: Boolean) {
         val loadedSource = source
         val loadedNovel = novel
         val chapter = chapters.getOrNull(index)
         if (loadedSource == null || loadedNovel == null || chapter == null) return
+        val generation = ++chapterGeneration
         chapterIndex = index
         preparing = true
         failure = null
@@ -462,6 +493,7 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
                 textCache.put(chapter.id, text)
                 val layout = SentenceSplitter.layout(text)
                 mainHandler.post {
+                    if (generation != chapterGeneration) return@post
                     sentences = layout.sentences
                     paragraphStarts = layout.paragraphs.map { it.start }
                     sentenceIndex = if (chapter.id == resumeChapterRowId && layout.sentences.isNotEmpty()) {
@@ -483,6 +515,7 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
                 }
             } catch (e: Exception) {
                 mainHandler.post {
+                    if (generation != chapterGeneration) return@post
                     preparing = false
                     failedChapterIndex = index
                     // Matrix: next-chapter fetch waits, paused with a
@@ -682,7 +715,7 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         runCatching { wakeLock?.takeIf { it.isHeld }?.release() }
     }
 
-    // ---- Progress (same write path as the text reader: offset + percent) ----
+    // ---- Progress (percent and chapter only; the reader owns the row's offset) ----
 
     private fun percentNow(): Int = when {
         sentences.isEmpty() -> 0
@@ -701,15 +734,27 @@ class TtsPlaybackService : MediaSessionService(), TtsController.Handle {
         val chapter = chapters.getOrNull(chapterIndex) ?: return
         lastProgressWriteAt = now
         appScope.launch {
-            historyRepository.upsertProgress(
-                ReadingProgressEntity(
-                    novelId = currentNovel.id,
-                    chapterId = chapter.id,
-                    scrollOffset = preservedScrollOffset,
-                    percent = percent,
-                    updatedAt = now,
-                ),
+            // Partial update: the text reader owns scrollOffset, and a full
+            // upsert would replay the queue-start offset over its live
+            // position. A TTS-first session on a lazily created novel has no
+            // row yet; 0 matched rows falls back to the inserting upsert.
+            val updated = historyRepository.updatePlaybackProgress(
+                novelId = currentNovel.id,
+                chapterId = chapter.id,
+                percent = percent,
+                updatedAt = now,
             )
+            if (updated == 0) {
+                historyRepository.upsertProgress(
+                    ReadingProgressEntity(
+                        novelId = currentNovel.id,
+                        chapterId = chapter.id,
+                        scrollOffset = 0L,
+                        percent = percent,
+                        updatedAt = now,
+                    ),
+                )
+            }
             if (percent >= READ_MARK_PERCENT) {
                 libraryRepository.setChapterRead(currentNovel.id, chapter.id, true)
             }

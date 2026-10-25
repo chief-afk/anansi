@@ -27,6 +27,22 @@ interface ReadingProgressDao {
     @Upsert
     suspend fun upsert(progress: ReadingProgressEntity)
 
+    /**
+     * The playback write: percent and chapter only, leaving the row's
+     * scrollOffset to the text reader. Returns matched rows so the caller
+     * can fall back to the inserting upsert when no row exists yet.
+     */
+    @Query(
+        "UPDATE reading_progress SET chapterId = :chapterId, percent = :percent, " +
+            "updatedAt = :updatedAt WHERE novelId = :novelId",
+    )
+    suspend fun updatePlaybackProgress(
+        novelId: Long,
+        chapterId: Long,
+        percent: Int,
+        updatedAt: Long,
+    ): Int
+
     @Transaction
     @Query(
         """

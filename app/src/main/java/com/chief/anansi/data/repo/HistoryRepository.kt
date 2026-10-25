@@ -21,6 +21,14 @@ class HistoryRepository(
         progressDao.upsert(progress)
     }
 
+    /** The playback write: percent and chapter only, never the reader's offset. */
+    suspend fun updatePlaybackProgress(
+        novelId: Long,
+        chapterId: Long,
+        percent: Int,
+        updatedAt: Long,
+    ): Int = progressDao.updatePlaybackProgress(novelId, chapterId, percent, updatedAt)
+
     suspend fun removeEntry(novelId: Long) {
         progressDao.deleteForNovel(novelId)
     }

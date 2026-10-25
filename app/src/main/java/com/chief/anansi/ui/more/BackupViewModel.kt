@@ -52,7 +52,7 @@ class BackupViewModel(
             try {
                 val text = withContext(Dispatchers.IO) { readText(uri) }
                 val fileName = withContext(Dispatchers.IO) { displayName(uri) }
-                val result = backupImportRepository.import(text)
+                val result = withContext(Dispatchers.IO) { backupImportRepository.import(text) }
                 _state.update {
                     BackupUiState(result = result, resultFileName = fileName)
                 }

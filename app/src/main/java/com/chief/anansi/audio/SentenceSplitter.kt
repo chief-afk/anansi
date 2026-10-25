@@ -9,7 +9,8 @@ package com.chief.anansi.audio
  * and the reader (which highlights): both run it over the same cached text
  * and get identical indexes.
  *
- * Boundaries are sentence terminators (. ! ? plus the CJK set) and paragraph
+ * Boundaries are sentence terminators (. ! ? plus the CJK set, the Arabic
+ * question mark, and the ellipsis) and paragraph
  * breaks (\n\n, matching the reader's paragraph model); a chapter without
  * terminators or breaks is one sentence.
  */
@@ -100,5 +101,5 @@ object SentenceSplitter {
         return sentences
     }
 
-    private val TERMINATORS = charArrayOf('.', '!', '?', '。', '！', '？')
+    private val TERMINATORS = charArrayOf('.', '!', '?', '。', '！', '？', '؟', '…')
 }
