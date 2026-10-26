@@ -180,12 +180,25 @@ class QuickJsSourceRuntimeTest {
                     "p$index" to runtime.load("p$index", dist)
                 }
                 val eldest = handles.getValue("p0")
-                try {
-                    eldest.inspect()
-                    fail("the least-recently-used slot must be closed after eviction")
-                } catch (e: IllegalStateException) {
-                    assertTrue(e.message!!.contains("runtime slot is closed"))
+                // Eviction retires the eldest slot; a stale call that starts
+                // before the queued close runs may still succeed (the
+                // instance lives until that call ends, per the retired-slot
+                // contract), so the closed state is awaited, not assumed.
+                var closed = false
+                var attempts = 0
+                while (!closed && attempts < 500) {
+                    attempts++
+                    try {
+                        eldest.inspect()
+                    } catch (e: IllegalStateException) {
+                        closed = e.message!!.contains("runtime slot is closed")
+                    }
+                    if (!closed) Thread.sleep(10)
                 }
+                assertTrue(
+                    "the least-recently-used slot must end closed after $attempts attempts",
+                    closed,
+                )
                 handles.getValue("p1").inspect()
                 handles.getValue("p8").inspect()
             }
